@@ -1,0 +1,260 @@
+export interface PermissionSeedData {
+  code: string;
+  name: string;
+  category: string;
+  description: string;
+}
+
+export const permissionSeedData: PermissionSeedData[] = [
+  {
+    code: 'BUSINESS_VIEW',
+    name: 'View business',
+    category: 'Business',
+    description: 'View business information and settings.',
+  },
+  {
+    code: 'BUSINESS_UPDATE',
+    name: 'Update business',
+    category: 'Business',
+    description: 'Update business information and settings.',
+  },
+
+  {
+    code: 'BRANCH_VIEW',
+    name: 'View branches',
+    category: 'Branch',
+    description: 'View branches belonging to the selected business.',
+  },
+  {
+    code: 'BRANCH_CREATE',
+    name: 'Create branches',
+    category: 'Branch',
+    description: 'Create new branches for the selected business.',
+  },
+  {
+    code: 'BRANCH_UPDATE',
+    name: 'Update branches',
+    category: 'Branch',
+    description: 'Update branches belonging to the selected business.',
+  },
+  {
+    code: 'BRANCH_DELETE',
+    name: 'Delete branches',
+    category: 'Branch',
+    description:
+      'Delete or deactivate branches belonging to the selected business.',
+  },
+
+  {
+    code: 'ROLE_VIEW',
+    name: 'View roles',
+    category: 'Role',
+    description: 'View roles and their assigned permissions.',
+  },
+  {
+    code: 'ROLE_CREATE',
+    name: 'Create roles',
+    category: 'Role',
+    description: 'Create custom roles for the selected business.',
+  },
+  {
+    code: 'ROLE_UPDATE',
+    name: 'Update roles',
+    category: 'Role',
+    description: 'Update roles and their permission assignments.',
+  },
+  {
+    code: 'ROLE_DELETE',
+    name: 'Delete roles',
+    category: 'Role',
+    description: 'Delete eligible custom roles.',
+  },
+
+  {
+    code: 'MEMBER_VIEW',
+    name: 'View members',
+    category: 'Member',
+    description: 'View business members and their assignments.',
+  },
+  {
+    code: 'MEMBER_INVITE',
+    name: 'Invite members',
+    category: 'Member',
+    description: 'Invite users to join the selected business.',
+  },
+  {
+    code: 'MEMBER_UPDATE',
+    name: 'Update members',
+    category: 'Member',
+    description: 'Update member status, roles, and branch assignments.',
+  },
+  {
+    code: 'MEMBER_REMOVE',
+    name: 'Remove members',
+    category: 'Member',
+    description: 'Remove eligible members from the selected business.',
+  },
+
+  {
+    code: 'CATEGORY_VIEW',
+    name: 'View categories',
+    category: 'Inventory - Category',
+    description: 'View product categories in the selected business.',
+  },
+  {
+    code: 'CATEGORY_CREATE',
+    name: 'Create categories',
+    category: 'Inventory - Category',
+    description: 'Create product categories in the selected business.',
+  },
+  {
+    code: 'CATEGORY_UPDATE',
+    name: 'Update categories',
+    category: 'Inventory - Category',
+    description: 'Update product categories in the selected business.',
+  },
+  {
+    code: 'CATEGORY_DELETE',
+    name: 'Delete categories',
+    category: 'Inventory - Category',
+    description:
+      'Delete or deactivate product categories in the selected business.',
+  },
+
+  {
+    code: 'UNIT_VIEW',
+    name: 'View units',
+    category: 'Inventory - Unit',
+    description: 'View units of measurement in the selected business.',
+  },
+  {
+    code: 'UNIT_CREATE',
+    name: 'Create units',
+    category: 'Inventory - Unit',
+    description: 'Create units of measurement in the selected business.',
+  },
+  {
+    code: 'UNIT_UPDATE',
+    name: 'Update units',
+    category: 'Inventory - Unit',
+    description: 'Update units of measurement in the selected business.',
+  },
+  {
+    code: 'UNIT_DELETE',
+    name: 'Delete units',
+    category: 'Inventory - Unit',
+    description:
+      'Delete or deactivate units of measurement in the selected business.',
+  },
+
+  {
+    code: 'BRAND_VIEW',
+    name: 'View brands',
+    category: 'Inventory - Brand',
+    description: 'View product brands in the selected business.',
+  },
+  {
+    code: 'BRAND_CREATE',
+    name: 'Create brands',
+    category: 'Inventory - Brand',
+    description: 'Create product brands in the selected business.',
+  },
+  {
+    code: 'BRAND_UPDATE',
+    name: 'Update brands',
+    category: 'Inventory - Brand',
+    description: 'Update product brands in the selected business.',
+  },
+  {
+    code: 'BRAND_DELETE',
+    name: 'Delete brands',
+    category: 'Inventory - Brand',
+    description:
+      'Delete or deactivate product brands in the selected business.',
+  },
+
+  {
+    code: 'PRODUCT_VIEW',
+    name: 'View products',
+    category: 'Inventory - Product',
+    description: 'View products in the selected business.',
+  },
+  {
+    code: 'PRODUCT_CREATE',
+    name: 'Create products',
+    category: 'Inventory - Product',
+    description: 'Create products in the selected business.',
+  },
+  {
+    code: 'PRODUCT_UPDATE',
+    name: 'Update products',
+    category: 'Inventory - Product',
+    description: 'Update products in the selected business.',
+  },
+  {
+    code: 'PRODUCT_DELETE',
+    name: 'Delete products',
+    category: 'Inventory - Product',
+    description: 'Delete or deactivate products in the selected business.',
+  },
+
+  {
+    code: 'SUPPLIER_VIEW',
+    name: 'View suppliers',
+    category: 'Purchase - Supplier',
+    description: 'View suppliers belonging to the selected business.',
+  },
+  {
+    code: 'SUPPLIER_CREATE',
+    name: 'Create suppliers',
+    category: 'Purchase - Supplier',
+    description: 'Create suppliers for the selected business.',
+  },
+  {
+    code: 'SUPPLIER_UPDATE',
+    name: 'Update suppliers',
+    category: 'Purchase - Supplier',
+    description: 'Update supplier information.',
+  },
+  {
+    code: 'SUPPLIER_DELETE',
+    name: 'Deactivate suppliers',
+    category: 'Purchase - Supplier',
+    description: 'Deactivate suppliers belonging to the selected business.',
+  },
+
+  {
+    code: 'PURCHASE_VIEW',
+    name: 'View purchases',
+    category: 'Purchase',
+    description:
+      'View purchase records belonging to the selected business.',
+  },
+  {
+    code: 'PURCHASE_CREATE',
+    name: 'Create purchases',
+    category: 'Purchase',
+    description: 'Create draft purchases for the selected business.',
+  },
+  {
+    code: 'PURCHASE_UPDATE',
+    name: 'Update purchases',
+    category: 'Purchase',
+    description:
+      'Update purchase information and items while the purchase is in draft status.',
+  },
+  {
+    code: 'PURCHASE_RECEIVE',
+    name: 'Receive purchases',
+    category: 'Purchase',
+    description:
+      'Receive a purchase and add purchased quantities to branch stock.',
+  },
+  {
+    code: 'PURCHASE_CANCEL',
+    name: 'Cancel purchases',
+    category: 'Purchase',
+    description:
+      'Cancel eligible purchase records belonging to the selected business.',
+  },
+];
