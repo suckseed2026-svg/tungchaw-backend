@@ -50,6 +50,16 @@ enum PurchaseStatus {
   CANCELLED
 }
 
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  UPI
+  CARD
+  CHEQUE
+  CREDIT_NOTE
+  OTHER
+}
+
 model Business {
   id       String         @id @default(uuid())
   name     String
@@ -61,17 +71,18 @@ model Business {
   timezone String         @default("Asia/Kolkata")
   currency String         @default("INR")
 
-  branches       Branch[]
-  memberships    BusinessMember[]
-  roles          Role[]
-  categories     Category[]
-  units          Unit[]
-  brands         Brand[]
-  products       Product[]
-  suppliers      Supplier[]
-  purchases      Purchase[]
-  branchStocks   BranchStock[]
-  stockMovements StockMovement[]
+  branches         Branch[]
+  memberships      BusinessMember[]
+  roles            Role[]
+  categories       Category[]
+  units            Unit[]
+  brands           Brand[]
+  products         Product[]
+  suppliers        Supplier[]
+  purchases        Purchase[]
+  branchStocks     BranchStock[]
+  stockMovements   StockMovement[]
+  purchasePayments PurchasePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -86,11 +97,12 @@ model Branch {
   address    String?
   isActive   Boolean @default(true)
 
-  business          Business        @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business          Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   memberAssignments MemberBranch[]
   stocks            BranchStock[]
   stockMovements    StockMovement[]
   purchases         Purchase[]
+  purchasePayments  PurchasePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -111,9 +123,10 @@ model User {
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
 
-  memberships      BusinessMember[]
-  stockMovements   StockMovement[]
-  createdPurchases Purchase[]
+  memberships             BusinessMember[]
+  stockMovements          StockMovement[]
+  createdPurchases        Purchase[]
+  createdPurchasePayments PurchasePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -300,8 +313,9 @@ model Supplier {
 
   isActive Boolean @default(true)
 
-  business  Business   @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  purchases Purchase[]
+  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchases        Purchase[]
+  purchasePayments PurchasePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -379,7 +393,8 @@ model Purchase {
   supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
 
-  items PurchaseItem[]
+  items    PurchaseItem[]
+  payments PurchasePayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -424,6 +439,40 @@ model PurchaseItem {
   @@index([expiryDate])
   @@index([purchaseId, productId])
   @@index([batchNumber])
+}
+
+model PurchasePayment {
+  id          String  @id @default(uuid())
+  businessId  String
+  purchaseId  String
+  supplierId  String
+  branchId    String
+  createdById String?
+
+  paymentDate   DateTime
+  amount        Decimal       @db.Decimal(18, 2)
+  paymentMethod PaymentMethod
+
+  referenceNumber String?
+  notes           String?
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchase  Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplier  Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  branch    Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([businessId])
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@index([branchId])
+  @@index([createdById])
+  @@index([businessId, paymentDate])
+  @@index([businessId, supplierId, paymentDate])
+  @@index([businessId, purchaseId])
 }
 
 model BranchStock {
