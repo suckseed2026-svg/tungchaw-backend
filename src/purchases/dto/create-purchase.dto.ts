@@ -66,7 +66,7 @@ export class CreatePurchaseDto {
     maxDecimalPlaces: 2,
   })
   @Min(0)
-  discountAmount: number = 0;
+  discountAmount?: number;
 
   @ApiPropertyOptional({
     example: 50,
@@ -80,7 +80,7 @@ export class CreatePurchaseDto {
     maxDecimalPlaces: 2,
   })
   @Min(0)
-  taxAmount: number = 0;
+  taxAmount?: number;
 
   @ApiPropertyOptional({
     example: 25,
@@ -94,7 +94,7 @@ export class CreatePurchaseDto {
     maxDecimalPlaces: 2,
   })
   @Min(0)
-  otherCharges: number = 0;
+  otherCharges?: number;
 
   @ApiPropertyOptional({
     example: 'Deliver to the main branch warehouse',
