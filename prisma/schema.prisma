@@ -79,6 +79,7 @@ model Business {
   brands           Brand[]
   products         Product[]
   suppliers        Supplier[]
+  customers        Customer[]
   purchases        Purchase[]
   branchStocks     BranchStock[]
   stockMovements   StockMovement[]
@@ -324,6 +325,34 @@ model Supplier {
   @@index([businessId])
   @@index([businessId, isActive])
   @@index([businessId, name])
+}
+
+model Customer {
+  id         String @id @default(uuid())
+  businessId String
+
+  code    String
+  name    String
+  phone   String?
+  email   String?
+  address String?
+
+  creditLimit    Decimal @default(0) @db.Decimal(18, 2)
+  openingBalance Decimal @default(0) @db.Decimal(18, 2)
+
+  notes    String?
+  isActive Boolean @default(true)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, code])
+  @@index([businessId])
+  @@index([businessId, name])
+  @@index([businessId, phone])
+  @@index([businessId, isActive])
 }
 
 model Product {

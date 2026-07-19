@@ -14,6 +14,8 @@ import { ProductsModule } from './products/products.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { PurchasePaymentsModule } from './purchase-payments/purchase-payments.module';
+import { CustomersModule } from './customers/customers.module';
+
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -31,6 +33,7 @@ import { PurchasePaymentsModule } from './purchase-payments/purchase-payments.mo
     SuppliersModule,
     PurchasesModule,
     PurchasePaymentsModule,
+    CustomersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

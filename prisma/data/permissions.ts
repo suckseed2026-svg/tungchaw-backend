@@ -1,5 +1,10 @@
+import {
+  PermissionCodes,
+  type PermissionCode,
+} from '../../src/authorization/constants/permission-codes';
+
 export interface PermissionSeedData {
-  code: string;
+  code: PermissionCode;
   name: string;
   category: string;
   description: string;
@@ -7,38 +12,38 @@ export interface PermissionSeedData {
 
 export const permissionSeedData: PermissionSeedData[] = [
   {
-    code: 'BUSINESS_VIEW',
+    code: PermissionCodes.BUSINESS_VIEW,
     name: 'View business',
     category: 'Business',
     description: 'View business information and settings.',
   },
   {
-    code: 'BUSINESS_UPDATE',
+    code: PermissionCodes.BUSINESS_UPDATE,
     name: 'Update business',
     category: 'Business',
     description: 'Update business information and settings.',
   },
 
   {
-    code: 'BRANCH_VIEW',
+    code: PermissionCodes.BRANCH_VIEW,
     name: 'View branches',
     category: 'Branch',
     description: 'View branches belonging to the selected business.',
   },
   {
-    code: 'BRANCH_CREATE',
+    code: PermissionCodes.BRANCH_CREATE,
     name: 'Create branches',
     category: 'Branch',
     description: 'Create new branches for the selected business.',
   },
   {
-    code: 'BRANCH_UPDATE',
+    code: PermissionCodes.BRANCH_UPDATE,
     name: 'Update branches',
     category: 'Branch',
     description: 'Update branches belonging to the selected business.',
   },
   {
-    code: 'BRANCH_DELETE',
+    code: PermissionCodes.BRANCH_DELETE,
     name: 'Delete branches',
     category: 'Branch',
     description:
@@ -46,75 +51,75 @@ export const permissionSeedData: PermissionSeedData[] = [
   },
 
   {
-    code: 'ROLE_VIEW',
+    code: PermissionCodes.ROLE_VIEW,
     name: 'View roles',
     category: 'Role',
     description: 'View roles and their assigned permissions.',
   },
   {
-    code: 'ROLE_CREATE',
+    code: PermissionCodes.ROLE_CREATE,
     name: 'Create roles',
     category: 'Role',
     description: 'Create custom roles for the selected business.',
   },
   {
-    code: 'ROLE_UPDATE',
+    code: PermissionCodes.ROLE_UPDATE,
     name: 'Update roles',
     category: 'Role',
     description: 'Update roles and their permission assignments.',
   },
   {
-    code: 'ROLE_DELETE',
+    code: PermissionCodes.ROLE_DELETE,
     name: 'Delete roles',
     category: 'Role',
     description: 'Delete eligible custom roles.',
   },
 
   {
-    code: 'MEMBER_VIEW',
+    code: PermissionCodes.MEMBER_VIEW,
     name: 'View members',
     category: 'Member',
     description: 'View business members and their assignments.',
   },
   {
-    code: 'MEMBER_INVITE',
+    code: PermissionCodes.MEMBER_INVITE,
     name: 'Invite members',
     category: 'Member',
     description: 'Invite users to join the selected business.',
   },
   {
-    code: 'MEMBER_UPDATE',
+    code: PermissionCodes.MEMBER_UPDATE,
     name: 'Update members',
     category: 'Member',
     description: 'Update member status, roles, and branch assignments.',
   },
   {
-    code: 'MEMBER_REMOVE',
+    code: PermissionCodes.MEMBER_REMOVE,
     name: 'Remove members',
     category: 'Member',
     description: 'Remove eligible members from the selected business.',
   },
 
   {
-    code: 'CATEGORY_VIEW',
+    code: PermissionCodes.CATEGORY_VIEW,
     name: 'View categories',
     category: 'Inventory - Category',
     description: 'View product categories in the selected business.',
   },
   {
-    code: 'CATEGORY_CREATE',
+    code: PermissionCodes.CATEGORY_CREATE,
     name: 'Create categories',
     category: 'Inventory - Category',
     description: 'Create product categories in the selected business.',
   },
   {
-    code: 'CATEGORY_UPDATE',
+    code: PermissionCodes.CATEGORY_UPDATE,
     name: 'Update categories',
     category: 'Inventory - Category',
     description: 'Update product categories in the selected business.',
   },
   {
-    code: 'CATEGORY_DELETE',
+    code: PermissionCodes.CATEGORY_DELETE,
     name: 'Delete categories',
     category: 'Inventory - Category',
     description:
@@ -122,25 +127,25 @@ export const permissionSeedData: PermissionSeedData[] = [
   },
 
   {
-    code: 'UNIT_VIEW',
+    code: PermissionCodes.UNIT_VIEW,
     name: 'View units',
     category: 'Inventory - Unit',
     description: 'View units of measurement in the selected business.',
   },
   {
-    code: 'UNIT_CREATE',
+    code: PermissionCodes.UNIT_CREATE,
     name: 'Create units',
     category: 'Inventory - Unit',
     description: 'Create units of measurement in the selected business.',
   },
   {
-    code: 'UNIT_UPDATE',
+    code: PermissionCodes.UNIT_UPDATE,
     name: 'Update units',
     category: 'Inventory - Unit',
     description: 'Update units of measurement in the selected business.',
   },
   {
-    code: 'UNIT_DELETE',
+    code: PermissionCodes.UNIT_DELETE,
     name: 'Delete units',
     category: 'Inventory - Unit',
     description:
@@ -148,25 +153,25 @@ export const permissionSeedData: PermissionSeedData[] = [
   },
 
   {
-    code: 'BRAND_VIEW',
+    code: PermissionCodes.BRAND_VIEW,
     name: 'View brands',
     category: 'Inventory - Brand',
     description: 'View product brands in the selected business.',
   },
   {
-    code: 'BRAND_CREATE',
+    code: PermissionCodes.BRAND_CREATE,
     name: 'Create brands',
     category: 'Inventory - Brand',
     description: 'Create product brands in the selected business.',
   },
   {
-    code: 'BRAND_UPDATE',
+    code: PermissionCodes.BRAND_UPDATE,
     name: 'Update brands',
     category: 'Inventory - Brand',
     description: 'Update product brands in the selected business.',
   },
   {
-    code: 'BRAND_DELETE',
+    code: PermissionCodes.BRAND_DELETE,
     name: 'Delete brands',
     category: 'Inventory - Brand',
     description:
@@ -174,84 +179,109 @@ export const permissionSeedData: PermissionSeedData[] = [
   },
 
   {
-    code: 'PRODUCT_VIEW',
+    code: PermissionCodes.PRODUCT_VIEW,
     name: 'View products',
     category: 'Inventory - Product',
     description: 'View products in the selected business.',
   },
   {
-    code: 'PRODUCT_CREATE',
+    code: PermissionCodes.PRODUCT_CREATE,
     name: 'Create products',
     category: 'Inventory - Product',
     description: 'Create products in the selected business.',
   },
   {
-    code: 'PRODUCT_UPDATE',
+    code: PermissionCodes.PRODUCT_UPDATE,
     name: 'Update products',
     category: 'Inventory - Product',
     description: 'Update products in the selected business.',
   },
   {
-    code: 'PRODUCT_DELETE',
+    code: PermissionCodes.PRODUCT_DELETE,
     name: 'Delete products',
     category: 'Inventory - Product',
     description: 'Delete or deactivate products in the selected business.',
   },
 
   {
-    code: 'SUPPLIER_VIEW',
+    code: PermissionCodes.SUPPLIER_VIEW,
     name: 'View suppliers',
     category: 'Purchase - Supplier',
     description: 'View suppliers belonging to the selected business.',
   },
   {
-    code: 'SUPPLIER_CREATE',
+    code: PermissionCodes.SUPPLIER_CREATE,
     name: 'Create suppliers',
     category: 'Purchase - Supplier',
     description: 'Create suppliers for the selected business.',
   },
   {
-    code: 'SUPPLIER_UPDATE',
+    code: PermissionCodes.SUPPLIER_UPDATE,
     name: 'Update suppliers',
     category: 'Purchase - Supplier',
     description: 'Update supplier information.',
   },
   {
-    code: 'SUPPLIER_DELETE',
+    code: PermissionCodes.SUPPLIER_DELETE,
     name: 'Deactivate suppliers',
     category: 'Purchase - Supplier',
     description: 'Deactivate suppliers belonging to the selected business.',
   },
 
   {
-    code: 'PURCHASE_VIEW',
+    code: PermissionCodes.CUSTOMER_VIEW,
+    name: 'View customers',
+    category: 'Sales - Customer',
+    description: 'View customers belonging to the selected business.',
+  },
+  {
+    code: PermissionCodes.CUSTOMER_CREATE,
+    name: 'Create customers',
+    category: 'Sales - Customer',
+    description: 'Create customers for the selected business.',
+  },
+  {
+    code: PermissionCodes.CUSTOMER_UPDATE,
+    name: 'Update customers',
+    category: 'Sales - Customer',
+    description: 'Update customer information and account settings.',
+  },
+  {
+    code: PermissionCodes.CUSTOMER_DELETE,
+    name: 'Deactivate customers',
+    category: 'Sales - Customer',
+    description: 'Deactivate customers belonging to the selected business.',
+  },
+
+  {
+    code: PermissionCodes.PURCHASE_VIEW,
     name: 'View purchases',
     category: 'Purchase',
     description:
       'View purchase records belonging to the selected business.',
   },
   {
-    code: 'PURCHASE_CREATE',
+    code: PermissionCodes.PURCHASE_CREATE,
     name: 'Create purchases',
     category: 'Purchase',
     description: 'Create draft purchases for the selected business.',
   },
   {
-    code: 'PURCHASE_UPDATE',
+    code: PermissionCodes.PURCHASE_UPDATE,
     name: 'Update purchases',
     category: 'Purchase',
     description:
       'Update purchase information and items while the purchase is in draft status.',
   },
   {
-    code: 'PURCHASE_RECEIVE',
+    code: PermissionCodes.PURCHASE_RECEIVE,
     name: 'Receive purchases',
     category: 'Purchase',
     description:
       'Receive a purchase and add purchased quantities to branch stock.',
   },
   {
-    code: 'PURCHASE_CANCEL',
+    code: PermissionCodes.PURCHASE_CANCEL,
     name: 'Cancel purchases',
     category: 'Purchase',
     description:
