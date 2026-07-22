@@ -74,11 +74,18 @@ async function assignPermissionsToExistingOwnerRoles(): Promise<void> {
     console.log(
       'No existing Owner roles were found. New businesses will receive permissions during onboarding.',
     );
+
+    return;
+  }
+
+  if (permissions.length === 0) {
+    console.log('No active permissions were found.');
+
     return;
   }
 
   for (const ownerRole of ownerRoles) {
-    await prisma.rolePermission.createMany({
+    const result = await prisma.rolePermission.createMany({
       data: permissions.map((permission) => ({
         roleId: ownerRole.id,
         permissionId: permission.id,
@@ -87,14 +94,20 @@ async function assignPermissionsToExistingOwnerRoles(): Promise<void> {
     });
 
     console.log(
-      `Assigned ${permissions.length} permissions to Owner role for business ${ownerRole.businessId}.`,
+      `Processed ${permissions.length} permissions for Owner role of business ${ownerRole.businessId}. Added ${result.count} new assignments.`,
     );
   }
+
+  console.log('Owner-role permission assignment completed.');
 }
 
 async function main(): Promise<void> {
+  console.log('Starting Tungchaw database seed...');
+
   await seedPermissions();
   await assignPermissionsToExistingOwnerRoles();
+
+  console.log('Tungchaw database seed completed successfully.');
 }
 
 main()
