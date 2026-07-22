@@ -60,6 +60,45 @@ enum PaymentMethod {
   OTHER
 }
 
+enum SaleStatus {
+  DRAFT
+  COMPLETED
+  CANCELLED
+}
+
+enum SalePaymentStatus {
+  UNPAID
+  PARTIALLY_PAID
+  PAID
+}
+
+enum SaleSource {
+  POS
+  MOBILE
+  WEB
+  PHONE_ORDER
+  WHATSAPP_ORDER
+  ADMIN
+}
+
+enum SaleActivityType {
+  CREATED
+  UPDATED
+  ITEM_ADDED
+  ITEM_REMOVED
+  CUSTOMER_SELECTED
+  CUSTOMER_REMOVED
+  DISCOUNT_APPLIED
+  DISCOUNT_APPROVED
+  PRICE_OVERRIDDEN
+  PRICE_OVERRIDE_APPROVED
+  PAYMENT_ADDED
+  COMPLETED
+  CANCELLED
+  RECEIPT_PRINTED
+  RECEIPT_SHARED
+}
+
 model Business {
   id       String         @id @default(uuid())
   name     String
@@ -84,6 +123,10 @@ model Business {
   branchStocks     BranchStock[]
   stockMovements   StockMovement[]
   purchasePayments PurchasePayment[]
+  sales            Sale[]
+  salePayments     SalePayment[]
+  saleActivities   SaleActivity[]
+  customerPayments CustomerPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -104,6 +147,9 @@ model Branch {
   stockMovements    StockMovement[]
   purchases         Purchase[]
   purchasePayments  PurchasePayment[]
+  sales             Sale[]
+  salePayments      SalePayment[]
+  customerPayments  CustomerPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -124,10 +170,16 @@ model User {
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
 
-  memberships             BusinessMember[]
-  stockMovements          StockMovement[]
-  createdPurchases        Purchase[]
-  createdPurchasePayments PurchasePayment[]
+  memberships               BusinessMember[]
+  stockMovements            StockMovement[]
+  createdPurchases          Purchase[]
+  createdPurchasePayments   PurchasePayment[]
+  createdSales              Sale[]            @relation("SaleCreatedBy")
+  cancelledSales            Sale[]            @relation("SaleCancelledBy")
+  createdSalePayments       SalePayment[]     @relation("SalePaymentCreatedBy")
+  saleActivities            SaleActivity[]    @relation("SaleActivityActor")
+  approvedSaleItemOverrides SaleItem[]        @relation("SaleItemPriceApprovedBy")
+  createdCustomerPayments   CustomerPayment[] @relation("CustomerPaymentCreatedBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -343,7 +395,9 @@ model Customer {
   notes    String?
   isActive Boolean @default(true)
 
-  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sales    Sale[]
+  payments CustomerPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -381,6 +435,7 @@ model Product {
   branchStocks   BranchStock[]
   stockMovements StockMovement[]
   purchaseItems  PurchaseItem[]
+  saleItems      SaleItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -560,4 +615,204 @@ model StockMovement {
   @@index([businessId, branchId, productId])
   @@index([referenceType, referenceId])
   @@index([createdAt])
+}
+
+model Sale {
+  id            String  @id @default(uuid())
+  businessId    String
+  branchId      String
+  customerId    String?
+  createdById   String
+  cancelledById String?
+
+  saleNumber    String
+  saleDate      DateTime
+  status        SaleStatus        @default(DRAFT)
+  paymentStatus SalePaymentStatus @default(UNPAID)
+  source        SaleSource        @default(POS)
+
+  subtotal          Decimal @default(0) @db.Decimal(18, 2)
+  itemDiscountTotal Decimal @default(0) @db.Decimal(18, 2)
+  billDiscount      Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount         Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount       Decimal @default(0) @db.Decimal(18, 2)
+
+  paidAmount   Decimal @default(0) @db.Decimal(18, 2)
+  creditAmount Decimal @default(0) @db.Decimal(18, 2)
+  changeAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  costTotal   Decimal @default(0) @db.Decimal(18, 2)
+  grossProfit Decimal @default(0) @db.Decimal(18, 2)
+
+  notes String?
+
+  completedAt        DateTime?
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch   Branch    @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  createdBy   User  @relation("SaleCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("SaleCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  items      SaleItem[]
+  payments   SalePayment[]
+  activities SaleActivity[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, saleNumber])
+  @@index([businessId])
+  @@index([branchId])
+  @@index([customerId])
+  @@index([createdById])
+  @@index([cancelledById])
+  @@index([businessId, status])
+  @@index([businessId, paymentStatus])
+  @@index([businessId, saleDate])
+  @@index([businessId, branchId, saleDate])
+  @@index([businessId, customerId, saleDate])
+  @@index([businessId, createdById, saleDate])
+}
+
+model SaleItem {
+  id         String @id @default(uuid())
+  saleId     String
+  productId  String
+  lineNumber Int
+
+  productName  String
+  productCode  String
+  barcode      String?
+  unitName     String
+  brandName    String?
+  categoryName String?
+
+  quantity     Decimal @db.Decimal(18, 3)
+  freeQuantity Decimal @default(0) @db.Decimal(18, 3)
+
+  unitCost          Decimal @db.Decimal(18, 2)
+  originalUnitPrice Decimal @db.Decimal(18, 2)
+  finalUnitPrice    Decimal @db.Decimal(18, 2)
+
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(18, 2)
+
+  lineSubtotal Decimal @db.Decimal(18, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+  lineCost     Decimal @db.Decimal(18, 2)
+  lineProfit   Decimal @db.Decimal(18, 2)
+
+  priceOverrideReason String?
+  priceApprovedById   String?
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  priceApprovedBy User? @relation("SaleItemPriceApprovedBy", fields: [priceApprovedById], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([saleId, lineNumber])
+  @@index([saleId])
+  @@index([productId])
+  @@index([priceApprovedById])
+  @@index([saleId, productId])
+}
+
+model SalePayment {
+  id          String @id @default(uuid())
+  businessId  String
+  saleId      String
+  branchId    String
+  createdById String
+
+  paymentNumber String
+  paymentDate   DateTime
+  paymentMethod PaymentMethod
+
+  amount         Decimal  @db.Decimal(18, 2)
+  tenderedAmount Decimal? @db.Decimal(18, 2)
+  changeAmount   Decimal  @default(0) @db.Decimal(18, 2)
+
+  referenceNumber String?
+  notes           String?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale     Sale     @relation(fields: [saleId], references: [id], onDelete: Restrict)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  createdBy User @relation("SalePaymentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, paymentNumber])
+  @@index([businessId])
+  @@index([saleId])
+  @@index([branchId])
+  @@index([createdById])
+  @@index([businessId, paymentDate])
+  @@index([businessId, branchId, paymentDate])
+  @@index([businessId, saleId])
+  @@index([businessId, paymentMethod, paymentDate])
+}
+
+model SaleActivity {
+  id         String @id @default(uuid())
+  businessId String
+  saleId     String
+  actorId    String
+
+  type        SaleActivityType
+  description String?
+  metadata    Json?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  sale     Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  actor User @relation("SaleActivityActor", fields: [actorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+
+  @@index([businessId])
+  @@index([saleId])
+  @@index([actorId])
+  @@index([saleId, createdAt])
+  @@index([businessId, type, createdAt])
+}
+
+model CustomerPayment {
+  id          String  @id @default(uuid())
+  businessId  String
+  customerId  String
+  branchId    String?
+  createdById String
+
+  paymentNumber String
+  paymentDate   DateTime
+  amount        Decimal       @db.Decimal(18, 2)
+  paymentMethod PaymentMethod
+
+  referenceNumber String?
+  notes           String?
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  customer  Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  branch    Branch?  @relation(fields: [branchId], references: [id], onDelete: SetNull)
+  createdBy User     @relation("CustomerPaymentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, paymentNumber])
+  @@index([businessId])
+  @@index([customerId])
+  @@index([branchId])
+  @@index([createdById])
+  @@index([businessId, customerId, paymentDate])
 }

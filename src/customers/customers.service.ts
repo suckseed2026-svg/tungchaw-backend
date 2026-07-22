@@ -14,7 +14,10 @@ import { UpdateCustomerDto } from './dto/update-customer.dto';
 export class CustomersService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(businessId: string, dto: CreateCustomerDto) {
+  async create(
+    businessId: string,
+    dto: CreateCustomerDto,
+  ) {
     const name = dto.name.trim();
     const normalizedCode = dto.code.trim().toUpperCase();
     const phone = dto.phone?.trim() || null;
@@ -22,15 +25,16 @@ export class CustomersService {
     const address = dto.address?.trim() || null;
     const notes = dto.notes?.trim() || null;
 
-    const duplicateCustomer = await this.prisma.customer.findFirst({
-      where: {
-        businessId,
-        code: normalizedCode,
-      },
-      select: {
-        id: true,
-      },
-    });
+    const duplicateCustomer =
+      await this.prisma.customer.findFirst({
+        where: {
+          businessId,
+          code: normalizedCode,
+        },
+        select: {
+          id: true,
+        },
+      });
 
     if (duplicateCustomer) {
       throw new ConflictException(
@@ -47,8 +51,12 @@ export class CustomersService {
           phone,
           email,
           address,
-          creditLimit: new Prisma.Decimal(dto.creditLimit ?? 0),
-          openingBalance: new Prisma.Decimal(dto.openingBalance ?? 0),
+          creditLimit: new Prisma.Decimal(
+            dto.creditLimit ?? 0,
+          ),
+          openingBalance: new Prisma.Decimal(
+            dto.openingBalance ?? 0,
+          ),
           notes,
         },
         select: this.customerSelect(),
@@ -66,7 +74,10 @@ export class CustomersService {
     }
   }
 
-  async findAll(businessId: string, query: CustomerQueryDto) {
+  async findAll(
+    businessId: string,
+    query: CustomerQueryDto,
+  ) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -113,19 +124,27 @@ export class CustomersService {
         : {}),
     };
 
-    const [items, total] = await this.prisma.$transaction([
-      this.prisma.customer.findMany({
-        where,
-        orderBy: [{ name: 'asc' }, { createdAt: 'asc' }],
-        skip,
-        take: limit,
-        select: this.customerSelect(),
-      }),
+    const [items, total] =
+      await this.prisma.$transaction([
+        this.prisma.customer.findMany({
+          where,
+          orderBy: [
+            {
+              name: 'asc',
+            },
+            {
+              createdAt: 'asc',
+            },
+          ],
+          skip,
+          take: limit,
+          select: this.customerSelect(),
+        }),
 
-      this.prisma.customer.count({
-        where,
-      }),
-    ]);
+        this.prisma.customer.count({
+          where,
+        }),
+      ]);
 
     return {
       data: items,
@@ -133,22 +152,29 @@ export class CustomersService {
         page,
         limit,
         total,
-        totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+        totalPages:
+          total === 0 ? 0 : Math.ceil(total / limit),
       },
     };
   }
 
-  async findOne(businessId: string, customerId: string) {
-    const customer = await this.prisma.customer.findFirst({
-      where: {
-        id: customerId,
-        businessId,
-      },
-      select: this.customerSelect(),
-    });
+  async findOne(
+    businessId: string,
+    customerId: string,
+  ) {
+    const customer =
+      await this.prisma.customer.findFirst({
+        where: {
+          id: customerId,
+          businessId,
+        },
+        select: this.customerSelect(),
+      });
 
     if (!customer) {
-      throw new NotFoundException('Customer not found');
+      throw new NotFoundException(
+        'Customer not found',
+      );
     }
 
     return customer;
@@ -159,37 +185,46 @@ export class CustomersService {
     customerId: string,
     dto: UpdateCustomerDto,
   ) {
-    const customer = await this.prisma.customer.findFirst({
-      where: {
-        id: customerId,
-        businessId,
-      },
-      select: {
-        id: true,
-        code: true,
-      },
-    });
-
-    if (!customer) {
-      throw new NotFoundException('Customer not found');
-    }
-
-    const normalizedCode =
-      dto.code !== undefined ? dto.code.trim().toUpperCase() : undefined;
-
-    if (normalizedCode !== undefined && normalizedCode !== customer.code) {
-      const duplicateCustomer = await this.prisma.customer.findFirst({
+    const customer =
+      await this.prisma.customer.findFirst({
         where: {
+          id: customerId,
           businessId,
-          code: normalizedCode,
-          id: {
-            not: customerId,
-          },
         },
         select: {
           id: true,
+          code: true,
         },
       });
+
+    if (!customer) {
+      throw new NotFoundException(
+        'Customer not found',
+      );
+    }
+
+    const normalizedCode =
+      dto.code !== undefined
+        ? dto.code.trim().toUpperCase()
+        : undefined;
+
+    if (
+      normalizedCode !== undefined &&
+      normalizedCode !== customer.code
+    ) {
+      const duplicateCustomer =
+        await this.prisma.customer.findFirst({
+          where: {
+            businessId,
+            code: normalizedCode,
+            id: {
+              not: customerId,
+            },
+          },
+          select: {
+            id: true,
+          },
+        });
 
       if (duplicateCustomer) {
         throw new ConflictException(
@@ -224,25 +259,32 @@ export class CustomersService {
 
           ...(dto.email !== undefined
             ? {
-                email: dto.email.trim().toLowerCase() || null,
+                email:
+                  dto.email.trim().toLowerCase() ||
+                  null,
               }
             : {}),
 
           ...(dto.address !== undefined
             ? {
-                address: dto.address.trim() || null,
+                address:
+                  dto.address.trim() || null,
               }
             : {}),
 
           ...(dto.creditLimit !== undefined
             ? {
-                creditLimit: new Prisma.Decimal(dto.creditLimit),
+                creditLimit: new Prisma.Decimal(
+                  dto.creditLimit,
+                ),
               }
             : {}),
 
           ...(dto.openingBalance !== undefined
             ? {
-                openingBalance: new Prisma.Decimal(dto.openingBalance),
+                openingBalance: new Prisma.Decimal(
+                  dto.openingBalance,
+                ),
               }
             : {}),
 
@@ -273,8 +315,14 @@ export class CustomersService {
     }
   }
 
-  async deactivate(businessId: string, customerId: string) {
-    const customer = await this.findOne(businessId, customerId);
+  async deactivate(
+    businessId: string,
+    customerId: string,
+  ) {
+    const customer = await this.findOne(
+      businessId,
+      customerId,
+    );
 
     if (!customer.isActive) {
       return {
@@ -284,18 +332,20 @@ export class CustomersService {
     }
 
     try {
-      const updatedCustomer = await this.prisma.customer.update({
-        where: {
-          id: customerId,
-        },
-        data: {
-          isActive: false,
-        },
-        select: this.customerSelect(),
-      });
+      const updatedCustomer =
+        await this.prisma.customer.update({
+          where: {
+            id: customerId,
+          },
+          data: {
+            isActive: false,
+          },
+          select: this.customerSelect(),
+        });
 
       return {
-        message: 'Customer deactivated successfully',
+        message:
+          'Customer deactivated successfully',
         customer: updatedCustomer,
       };
     } catch {
@@ -323,12 +373,15 @@ export class CustomersService {
     } satisfies Prisma.CustomerSelect;
   }
 
-  private isUniqueConstraintError(error: unknown): error is { code: string } {
+  private isUniqueConstraintError(
+    error: unknown,
+  ): error is { code: string } {
     return (
       typeof error === 'object' &&
       error !== null &&
       'code' in error &&
-      (error as { code?: unknown }).code === 'P2002'
+      (error as { code?: unknown }).code ===
+        'P2002'
     );
   }
 }
