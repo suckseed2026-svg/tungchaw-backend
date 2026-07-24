@@ -111,6 +111,11 @@ enum SaleReturnItemCondition {
   OTHER
 }
 
+enum PurchaseReturnStatus {
+  COMPLETED
+  CANCELLED
+}
+
 model Business {
   id       String         @id @default(uuid())
   name     String
@@ -140,6 +145,7 @@ model Business {
   saleActivities   SaleActivity[]
   customerPayments CustomerPayment[]
   saleReturns      SaleReturn[]
+  purchaseReturns  PurchaseReturn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,6 +170,7 @@ model Branch {
   salePayments      SalePayment[]
   customerPayments  CustomerPayment[]
   saleReturns       SaleReturn[]
+  purchaseReturns   PurchaseReturn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -194,8 +201,10 @@ model User {
   saleActivities            SaleActivity[]    @relation("SaleActivityActor")
   approvedSaleItemOverrides SaleItem[]        @relation("SaleItemPriceApprovedBy")
   createdCustomerPayments   CustomerPayment[] @relation("CustomerPaymentCreatedBy")
-  createdSaleReturns        SaleReturn[]       @relation("SaleReturnCreatedBy")
-  cancelledSaleReturns      SaleReturn[]       @relation("SaleReturnCancelledBy")
+  createdSaleReturns        SaleReturn[]      @relation("SaleReturnCreatedBy")
+  cancelledSaleReturns      SaleReturn[]      @relation("SaleReturnCancelledBy")
+  createdPurchaseReturns    PurchaseReturn[]  @relation("PurchaseReturnCreatedBy")
+  cancelledPurchaseReturns  PurchaseReturn[]  @relation("PurchaseReturnCancelledBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -385,6 +394,7 @@ model Supplier {
   business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   purchases        Purchase[]
   purchasePayments PurchasePayment[]
+  purchaseReturns  PurchaseReturn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -411,7 +421,7 @@ model Customer {
   notes    String?
   isActive Boolean @default(true)
 
-  business Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  business    Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
   sales       Sale[]
   payments    CustomerPayment[]
   saleReturns SaleReturn[]
@@ -449,11 +459,12 @@ model Product {
   unit     Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
   brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
-  branchStocks   BranchStock[]
-  stockMovements StockMovement[]
-  purchaseItems  PurchaseItem[]
-  saleItems       SaleItem[]
-  saleReturnItems SaleReturnItem[]
+  branchStocks        BranchStock[]
+  stockMovements      StockMovement[]
+  purchaseItems       PurchaseItem[]
+  saleItems           SaleItem[]
+  saleReturnItems     SaleReturnItem[]
+  purchaseReturnItems PurchaseReturnItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -497,6 +508,7 @@ model Purchase {
 
   items    PurchaseItem[]
   payments PurchasePayment[]
+  returns  PurchaseReturn[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -529,8 +541,9 @@ model PurchaseItem {
   manufacturedAt DateTime?
   expiryDate     DateTime?
 
-  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  purchase    Purchase             @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  product     Product              @relation(fields: [productId], references: [id], onDelete: Restrict)
+  returnItems PurchaseReturnItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -541,6 +554,105 @@ model PurchaseItem {
   @@index([expiryDate])
   @@index([purchaseId, productId])
   @@index([batchNumber])
+}
+
+model PurchaseReturn {
+  id            String  @id @default(uuid())
+  businessId    String
+  branchId      String
+  purchaseId    String
+  supplierId    String
+  createdById   String
+  cancelledById String?
+
+  returnNumber String
+  returnDate   DateTime
+  status       PurchaseReturnStatus @default(COMPLETED)
+
+  subtotal       Decimal @default(0) @db.Decimal(18, 2)
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(18, 2)
+  otherCharges   Decimal @default(0) @db.Decimal(18, 2)
+  totalAmount    Decimal @default(0) @db.Decimal(18, 2)
+
+  refundAmount           Decimal @default(0) @db.Decimal(18, 2)
+  creditAdjustmentAmount Decimal @default(0) @db.Decimal(18, 2)
+
+  refundMethod    PaymentMethod?
+  referenceNumber String?
+  reason          String
+  notes           String?
+
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+  purchase Purchase @relation(fields: [purchaseId], references: [id], onDelete: Restrict)
+  supplier Supplier @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+
+  createdBy   User  @relation("PurchaseReturnCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("PurchaseReturnCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  items PurchaseReturnItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, returnNumber])
+  @@index([businessId])
+  @@index([branchId])
+  @@index([purchaseId])
+  @@index([supplierId])
+  @@index([createdById])
+  @@index([cancelledById])
+  @@index([businessId, status])
+  @@index([businessId, returnDate])
+  @@index([businessId, branchId, returnDate])
+  @@index([businessId, supplierId, returnDate])
+  @@index([purchaseId, status])
+}
+
+model PurchaseReturnItem {
+  id               String @id @default(uuid())
+  purchaseReturnId String
+  purchaseItemId   String
+  productId        String
+  lineNumber       Int
+
+  productName String
+  productCode String
+  unitName    String
+
+  quantity Decimal @db.Decimal(18, 3)
+  unitCost Decimal @db.Decimal(18, 2)
+
+  discountAmount Decimal @default(0) @db.Decimal(18, 2)
+  taxAmount      Decimal @default(0) @db.Decimal(18, 2)
+  otherCharges   Decimal @default(0) @db.Decimal(18, 2)
+
+  lineSubtotal Decimal @db.Decimal(18, 2)
+  lineTotal    Decimal @db.Decimal(18, 2)
+
+  batchNumber String?
+  expiryDate  DateTime?
+  itemReason  String?
+
+  purchaseReturn PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+  purchaseItem   PurchaseItem   @relation(fields: [purchaseItemId], references: [id], onDelete: Restrict)
+  product        Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([purchaseReturnId, lineNumber])
+  @@index([purchaseReturnId])
+  @@index([purchaseItemId])
+  @@index([productId])
+  @@index([purchaseReturnId, productId])
+  @@index([purchaseItemId, purchaseReturnId])
+  @@index([batchNumber])
+  @@index([expiryDate])
 }
 
 model PurchasePayment {
@@ -731,7 +843,7 @@ model SaleItem {
   sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
   product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
 
-  priceApprovedBy User? @relation("SaleItemPriceApprovedBy", fields: [priceApprovedById], references: [id], onDelete: SetNull)
+  priceApprovedBy User?            @relation("SaleItemPriceApprovedBy", fields: [priceApprovedById], references: [id], onDelete: SetNull)
   returnItems     SaleReturnItem[]
 
   createdAt DateTime @default(now())

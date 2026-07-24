@@ -20,6 +20,7 @@ import { ProductsModule } from './products/products.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { PurchasePaymentsModule } from './purchase-payments/purchase-payments.module';
+import { PurchaseReturnsModule } from './purchase-returns/purchase-returns.module';
 
 import { CustomersModule } from './customers/customers.module';
 import { CustomerPaymentsModule } from './customer-payments/customer-payments.module';
@@ -49,6 +50,7 @@ import { SalesReturnsModule } from './sales-returns/sales-returns.module';
     SuppliersModule,
     PurchasesModule,
     PurchasePaymentsModule,
+    PurchaseReturnsModule,
 
     CustomersModule,
     CustomerPaymentsModule,
