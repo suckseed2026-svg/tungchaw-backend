@@ -3,11 +3,15 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
-} from "@nestjs/common";
-import { Prisma, SaleStatus } from "../generated/prisma/client";
-import { PrismaService } from "../prisma/prisma.service";
-import { CreateCustomerPaymentDto } from "./dto/create-customer-payment.dto";
-import { CustomerPaymentQueryDto } from "./dto/customer-payment-query.dto";
+} from '@nestjs/common';
+import {
+  Prisma,
+  SaleReturnStatus,
+  SaleStatus,
+} from '../generated/prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreateCustomerPaymentDto } from './dto/create-customer-payment.dto';
+import { CustomerPaymentQueryDto } from './dto/customer-payment-query.dto';
 
 @Injectable()
 export class CustomerPaymentsService {
@@ -23,7 +27,10 @@ export class CustomerPaymentsService {
       return await this.prisma.$transaction(
         async (tx) => {
           const customer = await tx.customer.findFirst({
-            where: { id: customerId, businessId },
+            where: {
+              id: customerId,
+              businessId,
+            },
             select: {
               id: true,
               code: true,
@@ -35,12 +42,12 @@ export class CustomerPaymentsService {
           });
 
           if (!customer) {
-            throw new NotFoundException("Customer not found");
+            throw new NotFoundException('Customer not found');
           }
 
           if (!customer.isActive) {
             throw new BadRequestException(
-              "Payments cannot be recorded for an inactive customer",
+              'Payments cannot be recorded for an inactive customer',
             );
           }
 
@@ -50,24 +57,28 @@ export class CustomerPaymentsService {
                 id: dto.branchId,
                 businessId,
               },
-              select: { id: true, isActive: true },
+              select: {
+                id: true,
+                isActive: true,
+              },
             });
 
             if (!branch) {
-              throw new NotFoundException("Branch not found");
+              throw new NotFoundException('Branch not found');
             }
 
             if (!branch.isActive) {
               throw new BadRequestException(
-                "Payments cannot be recorded against an inactive branch",
+                'Payments cannot be recorded against an inactive branch',
               );
             }
           }
 
           const amount = new Prisma.Decimal(dto.amount);
+
           if (amount.lessThanOrEqualTo(0)) {
             throw new BadRequestException(
-              "Payment amount must be greater than zero",
+              'Payment amount must be greater than zero',
             );
           }
 
@@ -81,7 +92,7 @@ export class CustomerPaymentsService {
 
           if (balanceBefore.outstandingBalance.lessThanOrEqualTo(0)) {
             throw new BadRequestException(
-              "This customer has no outstanding balance",
+              'This customer has no outstanding balance',
             );
           }
 
@@ -92,6 +103,7 @@ export class CustomerPaymentsService {
           }
 
           const paymentDate = new Date(dto.paymentDate);
+
           const paymentNumber = await this.generatePaymentNumber(
             tx,
             businessId,
@@ -115,10 +127,12 @@ export class CustomerPaymentsService {
           });
 
           const totalPayments = balanceBefore.totalPayments.plus(amount);
+
           const outstandingBalance = Prisma.Decimal.max(
             balanceBefore.openingBalance
               .plus(balanceBefore.creditSales)
-              .minus(totalPayments),
+              .minus(totalPayments)
+              .minus(balanceBefore.totalCreditAdjustments),
             new Prisma.Decimal(0),
           );
 
@@ -128,6 +142,7 @@ export class CustomerPaymentsService {
               openingBalance: balanceBefore.openingBalance,
               creditSales: balanceBefore.creditSales,
               totalPayments,
+              totalCreditAdjustments: balanceBefore.totalCreditAdjustments,
               outstandingBalance,
               creditLimit: balanceBefore.creditLimit,
               availableCredit: Prisma.Decimal.max(
@@ -151,7 +166,7 @@ export class CustomerPaymentsService {
 
       if (this.isUniqueConstraintError(error)) {
         throw new ConflictException(
-          "Unable to generate a unique customer payment number. Please retry.",
+          'Unable to generate a unique customer payment number. Please retry.',
         );
       }
 
@@ -165,6 +180,7 @@ export class CustomerPaymentsService {
     query: CustomerPaymentQueryDto,
   ) {
     const customer = await this.findCustomerOrThrow(businessId, customerId);
+
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
     const skip = (page - 1) * limit;
@@ -174,20 +190,33 @@ export class CustomerPaymentsService {
       query.dateTo &&
       new Date(query.dateFrom) > new Date(query.dateTo)
     ) {
-      throw new BadRequestException("dateFrom cannot be after dateTo");
+      throw new BadRequestException('dateFrom cannot be after dateTo');
     }
 
     const where: Prisma.CustomerPaymentWhereInput = {
       businessId,
       customerId,
-      ...(query.paymentMethod ? { paymentMethod: query.paymentMethod } : {}),
+
+      ...(query.paymentMethod
+        ? {
+            paymentMethod: query.paymentMethod,
+          }
+        : {}),
+
       ...(query.dateFrom || query.dateTo
         ? {
             paymentDate: {
               ...(query.dateFrom
-                ? { gte: this.startOfDay(query.dateFrom) }
+                ? {
+                    gte: this.startOfDay(query.dateFrom),
+                  }
                 : {}),
-              ...(query.dateTo ? { lte: this.endOfDay(query.dateTo) } : {}),
+
+              ...(query.dateTo
+                ? {
+                    lte: this.endOfDay(query.dateTo),
+                  }
+                : {}),
             },
           }
         : {}),
@@ -198,10 +227,21 @@ export class CustomerPaymentsService {
         where,
         skip,
         take: limit,
-        orderBy: [{ paymentDate: "desc" }, { createdAt: "desc" }],
+        orderBy: [
+          {
+            paymentDate: 'desc',
+          },
+          {
+            createdAt: 'desc',
+          },
+        ],
         include: this.paymentInclude(),
       }),
-      this.prisma.customerPayment.count({ where }),
+
+      this.prisma.customerPayment.count({
+        where,
+      }),
+
       this.getBalance(businessId, customerId),
     ]);
 
@@ -229,7 +269,7 @@ export class CustomerPaymentsService {
     });
 
     if (!payment) {
-      throw new NotFoundException("Customer payment not found");
+      throw new NotFoundException('Customer payment not found');
     }
 
     return payment;
@@ -237,6 +277,7 @@ export class CustomerPaymentsService {
 
   async getBalance(businessId: string, customerId: string) {
     const customer = await this.findCustomerOrThrow(businessId, customerId);
+
     const balance = await this.calculateBalance(
       this.prisma,
       businessId,
@@ -259,7 +300,10 @@ export class CustomerPaymentsService {
 
   private async findCustomerOrThrow(businessId: string, customerId: string) {
     const customer = await this.prisma.customer.findFirst({
-      where: { id: customerId, businessId },
+      where: {
+        id: customerId,
+        businessId,
+      },
       select: {
         id: true,
         code: true,
@@ -272,7 +316,7 @@ export class CustomerPaymentsService {
     });
 
     if (!customer) {
-      throw new NotFoundException("Customer not found");
+      throw new NotFoundException('Customer not found');
     }
 
     return customer;
@@ -285,26 +329,54 @@ export class CustomerPaymentsService {
     openingBalance: Prisma.Decimal,
     creditLimit: Prisma.Decimal,
   ) {
-    const [salesAggregate, paymentAggregate] = await Promise.all([
-      client.sale.aggregate({
-        where: {
-          businessId,
-          customerId,
-          status: SaleStatus.COMPLETED,
-        },
-        _sum: { creditAmount: true },
-      }),
-      client.customerPayment.aggregate({
-        where: { businessId, customerId },
-        _sum: { amount: true },
-      }),
-    ]);
+    const [salesAggregate, paymentAggregate, saleReturnAggregate] =
+      await Promise.all([
+        client.sale.aggregate({
+          where: {
+            businessId,
+            customerId,
+            status: SaleStatus.COMPLETED,
+          },
+          _sum: {
+            creditAmount: true,
+          },
+        }),
+
+        client.customerPayment.aggregate({
+          where: {
+            businessId,
+            customerId,
+          },
+          _sum: {
+            amount: true,
+          },
+        }),
+
+        client.saleReturn.aggregate({
+          where: {
+            businessId,
+            customerId,
+            status: SaleReturnStatus.COMPLETED,
+          },
+          _sum: {
+            creditAdjustmentAmount: true,
+          },
+        }),
+      ]);
 
     const creditSales =
       salesAggregate._sum.creditAmount ?? new Prisma.Decimal(0);
+
     const totalPayments = paymentAggregate._sum.amount ?? new Prisma.Decimal(0);
+
+    const totalCreditAdjustments =
+      saleReturnAggregate._sum.creditAdjustmentAmount ?? new Prisma.Decimal(0);
+
     const outstandingBalance = Prisma.Decimal.max(
-      openingBalance.plus(creditSales).minus(totalPayments),
+      openingBalance
+        .plus(creditSales)
+        .minus(totalPayments)
+        .minus(totalCreditAdjustments),
       new Prisma.Decimal(0),
     );
 
@@ -312,6 +384,7 @@ export class CustomerPaymentsService {
       openingBalance,
       creditSales,
       totalPayments,
+      totalCreditAdjustments,
       outstandingBalance,
       creditLimit,
       availableCredit: Prisma.Decimal.max(
@@ -328,40 +401,61 @@ export class CustomerPaymentsService {
   ): Promise<string> {
     const datePart = [
       paymentDate.getUTCFullYear(),
-      String(paymentDate.getUTCMonth() + 1).padStart(2, "0"),
-      String(paymentDate.getUTCDate()).padStart(2, "0"),
-    ].join("");
+      String(paymentDate.getUTCMonth() + 1).padStart(2, '0'),
+      String(paymentDate.getUTCDate()).padStart(2, '0'),
+    ].join('');
+
     const prefix = `CPAY-${datePart}-`;
 
     const latest = await tx.customerPayment.findFirst({
       where: {
         businessId,
-        paymentNumber: { startsWith: prefix },
+        paymentNumber: {
+          startsWith: prefix,
+        },
       },
-      orderBy: { paymentNumber: "desc" },
-      select: { paymentNumber: true },
+      orderBy: {
+        paymentNumber: 'desc',
+      },
+      select: {
+        paymentNumber: true,
+      },
     });
 
     const previousSequence = latest
       ? Number.parseInt(latest.paymentNumber.slice(prefix.length), 10)
       : 0;
+
     const nextSequence = Number.isFinite(previousSequence)
       ? previousSequence + 1
       : 1;
 
-    return `${prefix}${String(nextSequence).padStart(5, "0")}`;
+    return `${prefix}${String(nextSequence).padStart(5, '0')}`;
   }
 
   private paymentInclude() {
     return {
       customer: {
-        select: { id: true, code: true, name: true, phone: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          phone: true,
+        },
       },
       branch: {
-        select: { id: true, code: true, name: true },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+        },
       },
       createdBy: {
-        select: { id: true, name: true, email: true },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
       },
     } satisfies Prisma.CustomerPaymentInclude;
   }
@@ -369,12 +463,14 @@ export class CustomerPaymentsService {
   private startOfDay(value: string): Date {
     const date = new Date(value);
     date.setUTCHours(0, 0, 0, 0);
+
     return date;
   }
 
   private endOfDay(value: string): Date {
     const date = new Date(value);
     date.setUTCHours(23, 59, 59, 999);
+
     return date;
   }
 
@@ -383,7 +479,7 @@ export class CustomerPaymentsService {
   ): error is Prisma.PrismaClientKnownRequestError {
     return (
       error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2002"
+      error.code === 'P2002'
     );
   }
 }
