@@ -19,20 +19,10 @@ export class InventoryTransactionService {
 
     this.assertPositiveQuantity(quantity);
 
-    const product = await this.findProduct(
-      tx,
-      input.businessId,
-      input.productId,
-      input.productName,
-    );
+    const product = await this.findProduct(tx, input);
 
     if (!product.trackStock) {
-      return {
-        tracked: false,
-        quantityBefore: new Prisma.Decimal(0),
-        quantityChange: new Prisma.Decimal(0),
-        quantityAfter: new Prisma.Decimal(0),
-      };
+      return this.untrackedResult();
     }
 
     const existingStock = await tx.branchStock.findUnique({
@@ -79,21 +69,11 @@ export class InventoryTransactionService {
       },
     });
 
-    await tx.stockMovement.create({
-      data: {
-        businessId: input.businessId,
-        branchId: input.branchId,
-        productId: input.productId,
-        type: input.movementType,
-        quantityBefore,
-        quantityChange: quantity,
-        quantityAfter: stock.quantity,
-        referenceType: input.referenceType,
-        referenceId: input.referenceId,
-        reason: input.reason.trim(),
-        notes: input.notes?.trim() || null,
-        createdById: input.createdById ?? null,
-      },
+    await this.createMovement(tx, {
+      input,
+      quantityBefore,
+      quantityChange: quantity,
+      quantityAfter: stock.quantity,
     });
 
     return {
@@ -112,20 +92,10 @@ export class InventoryTransactionService {
 
     this.assertPositiveQuantity(quantity);
 
-    const product = await this.findProduct(
-      tx,
-      input.businessId,
-      input.productId,
-      input.productName,
-    );
+    const product = await this.findProduct(tx, input);
 
     if (!product.trackStock) {
-      return {
-        tracked: false,
-        quantityBefore: new Prisma.Decimal(0),
-        quantityChange: new Prisma.Decimal(0),
-        quantityAfter: new Prisma.Decimal(0),
-      };
+      return this.untrackedResult();
     }
 
     const existingStock = await tx.branchStock.findUnique({
@@ -143,7 +113,8 @@ export class InventoryTransactionService {
 
     if (!existingStock) {
       throw new ConflictException(
-        `No stock record exists for ${input.productName}`,
+        input.insufficientStockMessage ??
+          `No stock record exists for ${input.productName}`,
       );
     }
 
@@ -170,47 +141,39 @@ export class InventoryTransactionService {
     });
 
     if (updated.count !== 1) {
-      throw new ConflictException(`Not enough stock for ${input.productName}`);
+      throw new ConflictException(
+        input.insufficientStockMessage ??
+          `Not enough stock for ${input.productName}`,
+      );
     }
 
     const quantityBefore = existingStock.quantity;
+    const quantityChange = quantity.negated();
     const quantityAfter = quantityBefore.minus(quantity);
 
-    await tx.stockMovement.create({
-      data: {
-        businessId: input.businessId,
-        branchId: input.branchId,
-        productId: input.productId,
-        type: input.movementType,
-        quantityBefore,
-        quantityChange: quantity.negated(),
-        quantityAfter,
-        referenceType: input.referenceType,
-        referenceId: input.referenceId,
-        reason: input.reason.trim(),
-        notes: input.notes?.trim() || null,
-        createdById: input.createdById ?? null,
-      },
+    await this.createMovement(tx, {
+      input,
+      quantityBefore,
+      quantityChange,
+      quantityAfter,
     });
 
     return {
       tracked: true,
       quantityBefore,
-      quantityChange: quantity.negated(),
+      quantityChange,
       quantityAfter,
     };
   }
 
   private async findProduct(
     tx: Prisma.TransactionClient,
-    businessId: string,
-    productId: string,
-    productName: string,
+    input: InventoryTransactionInput,
   ) {
     const product = await tx.product.findFirst({
       where: {
-        id: productId,
-        businessId,
+        id: input.productId,
+        businessId: input.businessId,
       },
       select: {
         id: true,
@@ -220,14 +183,56 @@ export class InventoryTransactionService {
     });
 
     if (!product) {
-      throw new ConflictException(`Product ${productName} no longer exists`);
+      throw new ConflictException(
+        `Product ${input.productName} no longer exists`,
+      );
     }
 
-    if (!product.isActive) {
-      throw new BadRequestException(`Product ${productName} is inactive`);
+    if (!product.isActive && !input.allowInactiveProduct) {
+      throw new BadRequestException(`Product ${input.productName} is inactive`);
     }
 
     return product;
+  }
+
+  private async createMovement(
+    tx: Prisma.TransactionClient,
+    values: {
+      input: InventoryTransactionInput;
+      quantityBefore: Prisma.Decimal;
+      quantityChange: Prisma.Decimal;
+      quantityAfter: Prisma.Decimal;
+    },
+  ): Promise<void> {
+    const { input, quantityBefore, quantityChange, quantityAfter } = values;
+
+    await tx.stockMovement.create({
+      data: {
+        businessId: input.businessId,
+        branchId: input.branchId,
+        productId: input.productId,
+        type: input.movementType,
+        quantityBefore,
+        quantityChange,
+        quantityAfter,
+        referenceType: input.referenceType.trim(),
+        referenceId: input.referenceId,
+        reason: input.reason.trim(),
+        notes: input.notes?.trim() || null,
+        createdById: input.createdById ?? null,
+      },
+    });
+  }
+
+  private untrackedResult(): InventoryTransactionResult {
+    const zero = new Prisma.Decimal(0);
+
+    return {
+      tracked: false,
+      quantityBefore: zero,
+      quantityChange: zero,
+      quantityAfter: zero,
+    };
   }
 
   private assertPositiveQuantity(quantity: Prisma.Decimal): void {
@@ -239,7 +244,15 @@ export class InventoryTransactionService {
   }
 
   private quantity(value: Prisma.Decimal | string | number): Prisma.Decimal {
-    const quantity = new Prisma.Decimal(value).toDecimalPlaces(3);
+    let quantity: Prisma.Decimal;
+
+    try {
+      quantity = new Prisma.Decimal(value).toDecimalPlaces(3);
+    } catch {
+      throw new BadRequestException(
+        'Inventory transaction quantity is invalid',
+      );
+    }
 
     if (!quantity.isFinite()) {
       throw new BadRequestException(

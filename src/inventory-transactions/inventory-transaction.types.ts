@@ -15,6 +15,19 @@ export interface InventoryTransactionInput {
   reason: string;
   notes?: string | null;
   createdById?: string | null;
+
+  /**
+   * Historical transactions may need to modify inventory even when the
+   * product has since been marked inactive.
+   *
+   * Defaults to false.
+   */
+  allowInactiveProduct?: boolean;
+
+  /**
+   * Optional domain-specific error message when stock cannot be decreased.
+   */
+  insufficientStockMessage?: string;
 }
 
 export interface InventoryTransactionResult {

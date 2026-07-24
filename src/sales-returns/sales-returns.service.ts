@@ -12,6 +12,7 @@ import {
   SaleStatus,
   StockMovementType,
 } from '../generated/prisma/client';
+import { InventoryTransactionService } from '../inventory-transactions/inventory-transaction.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CancelSaleReturnDto } from './dto/cancel-sale-return.dto';
 import { CreateSaleReturnDto } from './dto/create-sale-return.dto';
@@ -40,7 +41,10 @@ interface CalculatedReturnItem {
 
 @Injectable()
 export class SalesReturnsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventoryTransactions: InventoryTransactionService,
+  ) {}
 
   async create(
     businessId: string,
@@ -52,17 +56,31 @@ export class SalesReturnsService {
       return await this.prisma.$transaction(
         async (tx) => {
           const sale = await tx.sale.findFirst({
-            where: { id: saleId, businessId },
+            where: {
+              id: saleId,
+              businessId,
+            },
             include: {
-              items: { orderBy: { lineNumber: 'asc' } },
+              items: {
+                orderBy: {
+                  lineNumber: 'asc',
+                },
+              },
               returns: {
-                where: { status: SaleReturnStatus.COMPLETED },
-                include: { items: true },
+                where: {
+                  status: SaleReturnStatus.COMPLETED,
+                },
+                include: {
+                  items: true,
+                },
               },
             },
           });
 
-          if (!sale) throw new NotFoundException('Sale not found');
+          if (!sale) {
+            throw new NotFoundException('Sale not found');
+          }
+
           if (sale.status !== SaleStatus.COMPLETED) {
             throw new BadRequestException(
               'Returns can only be created for completed sales',
@@ -70,6 +88,7 @@ export class SalesReturnsService {
           }
 
           const requestedIds = dto.items.map((item) => item.saleItemId);
+
           if (new Set(requestedIds).size !== requestedIds.length) {
             throw new BadRequestException(
               'A sale item may appear only once in a return',
@@ -79,7 +98,9 @@ export class SalesReturnsService {
           const saleItemMap = new Map(
             sale.items.map((item) => [item.id, item]),
           );
+
           const previouslyReturned = new Map<string, Prisma.Decimal>();
+
           for (const existingReturn of sale.returns) {
             for (const item of existingReturn.items) {
               previouslyReturned.set(
@@ -102,6 +123,7 @@ export class SalesReturnsService {
           const calculatedItems: CalculatedReturnItem[] = dto.items.map(
             (input, index) => {
               const saleItem = saleItemMap.get(input.saleItemId);
+
               if (!saleItem) {
                 throw new BadRequestException(
                   'One or more return items do not belong to this sale',
@@ -112,6 +134,7 @@ export class SalesReturnsService {
               const returned =
                 previouslyReturned.get(saleItem.id) ?? new Prisma.Decimal(0);
               const available = saleItem.quantity.minus(returned);
+
               if (quantity.greaterThan(available)) {
                 throw new BadRequestException(
                   `Return quantity for ${saleItem.productName} exceeds the remaining returnable quantity of ${available.toFixed(3)}`,
@@ -119,12 +142,17 @@ export class SalesReturnsService {
               }
 
               const ratio = quantity.dividedBy(saleItem.quantity);
+
               const lineSubtotal = this.money(saleItem.lineSubtotal.mul(ratio));
+
               const itemDiscount = this.money(
                 saleItem.discountAmount.mul(ratio),
               );
+
               const itemTax = this.money(saleItem.taxAmount.mul(ratio));
+
               const lineCost = this.money(saleItem.lineCost.mul(ratio));
+
               const allocatedBillDiscount = sale.totalAmount
                 .plus(sale.billDiscount)
                 .greaterThan(0)
@@ -135,19 +163,24 @@ export class SalesReturnsService {
                       .mul(ratio),
                   )
                 : new Prisma.Decimal(0);
+
               const totalDiscount = itemDiscount.plus(allocatedBillDiscount);
+
               const lineTotal = this.money(
                 lineSubtotal.minus(totalDiscount).plus(itemTax),
               );
+
               const itemProfitImpact = this.money(
                 lineTotal.minus(itemTax).minus(lineCost),
               );
 
               const condition =
                 input.condition ?? SaleReturnItemCondition.RESTOCKABLE;
+
               const restock =
                 input.restock ??
                 condition === SaleReturnItemCondition.RESTOCKABLE;
+
               if (
                 restock &&
                 condition !== SaleReturnItemCondition.RESTOCKABLE
@@ -195,29 +228,35 @@ export class SalesReturnsService {
           profitImpact = this.money(profitImpact);
 
           const refundAmount = this.money(dto.refundAmount ?? 0);
+
           const creditAdjustmentAmount = this.money(
             dto.creditAdjustmentAmount ?? 0,
           );
+
           if (!refundAmount.plus(creditAdjustmentAmount).equals(totalAmount)) {
             throw new BadRequestException(
               'Refund amount plus credit adjustment amount must exactly equal the return total',
             );
           }
+
           if (refundAmount.greaterThan(0) && !dto.refundMethod) {
             throw new BadRequestException(
               'Refund method is required when refund amount is greater than zero',
             );
           }
+
           if (refundAmount.equals(0) && dto.refundMethod) {
             throw new BadRequestException(
               'Refund method must be omitted when no refund is issued',
             );
           }
+
           if (dto.refundMethod === PaymentMethod.CREDIT_NOTE) {
             throw new BadRequestException(
               'Use creditAdjustmentAmount instead of CREDIT_NOTE refund method',
             );
           }
+
           if (creditAdjustmentAmount.greaterThan(0) && !sale.customerId) {
             throw new BadRequestException(
               'A customer is required for a credit adjustment',
@@ -225,12 +264,18 @@ export class SalesReturnsService {
           }
 
           const previousFinancials = sale.returns.reduce(
-            (acc, item) => ({
-              refund: acc.refund.plus(item.refundAmount),
-              credit: acc.credit.plus(item.creditAdjustmentAmount),
+            (accumulator, existingReturn) => ({
+              refund: accumulator.refund.plus(existingReturn.refundAmount),
+              credit: accumulator.credit.plus(
+                existingReturn.creditAdjustmentAmount,
+              ),
             }),
-            { refund: new Prisma.Decimal(0), credit: new Prisma.Decimal(0) },
+            {
+              refund: new Prisma.Decimal(0),
+              credit: new Prisma.Decimal(0),
+            },
           );
+
           if (
             previousFinancials.refund
               .plus(refundAmount)
@@ -240,6 +285,7 @@ export class SalesReturnsService {
               'Refund amount exceeds the remaining paid amount of the sale',
             );
           }
+
           if (
             previousFinancials.credit
               .plus(creditAdjustmentAmount)
@@ -251,11 +297,13 @@ export class SalesReturnsService {
           }
 
           const returnDate = new Date();
+
           const returnNumber = await this.generateReturnNumber(
             tx,
             businessId,
             returnDate,
           );
+
           const saleReturn = await tx.saleReturn.create({
             data: {
               businessId,
@@ -277,74 +325,46 @@ export class SalesReturnsService {
               referenceNumber: dto.referenceNumber?.trim() || null,
               reason: dto.reason.trim(),
               notes: dto.notes?.trim() || null,
-              items: { create: calculatedItems },
+              items: {
+                create: calculatedItems,
+              },
             },
-            select: { id: true },
+            select: {
+              id: true,
+            },
           });
 
           for (const item of calculatedItems) {
-            if (!item.restock) continue;
-            const product = await tx.product.findFirst({
-              where: { id: item.productId, businessId },
-              select: { id: true, trackStock: true },
-            });
-            if (!product)
-              throw new ConflictException(
-                `Product ${item.productName} no longer exists`,
-              );
-            if (!product.trackStock) continue;
+            if (!item.restock) {
+              continue;
+            }
 
-            const before = await tx.branchStock.findUnique({
-              where: {
-                branchId_productId: {
-                  branchId: sale.branchId,
-                  productId: item.productId,
-                },
-              },
-              select: { quantity: true },
-            });
-
-            const quantityBefore = before?.quantity ?? new Prisma.Decimal(0);
-            const stock = await tx.branchStock.upsert({
-              where: {
-                branchId_productId: {
-                  branchId: sale.branchId,
-                  productId: item.productId,
-                },
-              },
-              update: { quantity: { increment: item.quantity } },
-              create: {
-                businessId,
-                branchId: sale.branchId,
-                productId: item.productId,
-                quantity: item.quantity,
-              },
-              select: { quantity: true },
-            });
-
-            await tx.stockMovement.create({
-              data: {
-                businessId,
-                branchId: sale.branchId,
-                productId: item.productId,
-                type: StockMovementType.SALE_RETURN,
-                quantityBefore,
-                quantityChange: item.quantity,
-                quantityAfter: stock.quantity,
-                referenceType: 'SALE_RETURN',
-                referenceId: saleReturn.id,
-                reason: `Sale return ${returnNumber}`,
-                createdById: userId,
-              },
+            await this.inventoryTransactions.increaseStock(tx, {
+              businessId,
+              branchId: sale.branchId,
+              productId: item.productId,
+              productName: item.productName,
+              quantity: item.quantity,
+              movementType: StockMovementType.SALE_RETURN,
+              referenceType: 'SALE_RETURN',
+              referenceId: saleReturn.id,
+              reason: `Sale return ${returnNumber}`,
+              notes: item.itemReason,
+              createdById: userId,
+              allowInactiveProduct: true,
             });
           }
 
           return tx.saleReturn.findUniqueOrThrow({
-            where: { id: saleReturn.id },
+            where: {
+              id: saleReturn.id,
+            },
             select: this.detailsSelect(),
           });
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        {
+          isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        },
       );
     } catch (error: unknown) {
       if (
@@ -354,11 +374,13 @@ export class SalesReturnsService {
       ) {
         throw error;
       }
+
       if (this.isUniqueConstraintError(error)) {
         throw new ConflictException(
           'Unable to generate a unique sale return number. Please retry.',
         );
       }
+
       throw error;
     }
   }
@@ -372,10 +394,19 @@ export class SalesReturnsService {
     return this.prisma.$transaction(
       async (tx) => {
         const saleReturn = await tx.saleReturn.findFirst({
-          where: { id: returnId, businessId },
-          include: { items: true },
+          where: {
+            id: returnId,
+            businessId,
+          },
+          include: {
+            items: true,
+          },
         });
-        if (!saleReturn) throw new NotFoundException('Sale return not found');
+
+        if (!saleReturn) {
+          throw new NotFoundException('Sale return not found');
+        }
+
         if (saleReturn.status !== SaleReturnStatus.COMPLETED) {
           throw new BadRequestException(
             'Only completed sale returns can be cancelled',
@@ -383,61 +414,32 @@ export class SalesReturnsService {
         }
 
         for (const item of saleReturn.items) {
-          if (!item.restock) continue;
-          const product = await tx.product.findFirst({
-            where: { id: item.productId, businessId },
-            select: { trackStock: true },
-          });
-          if (!product?.trackStock) continue;
-
-          const before = await tx.branchStock.findUnique({
-            where: {
-              branchId_productId: {
-                branchId: saleReturn.branchId,
-                productId: item.productId,
-              },
-            },
-            select: { quantity: true },
-          });
-          if (!before)
-            throw new ConflictException(
-              `No stock record exists for ${item.productName}`,
-            );
-
-          const updated = await tx.branchStock.updateMany({
-            where: {
-              businessId,
-              branchId: saleReturn.branchId,
-              productId: item.productId,
-              quantity: { gte: item.quantity },
-            },
-            data: { quantity: { decrement: item.quantity } },
-          });
-          if (updated.count !== 1) {
-            throw new ConflictException(
-              `Cannot cancel return because available stock is lower than the restored quantity for ${item.productName}`,
-            );
+          if (!item.restock) {
+            continue;
           }
 
-          await tx.stockMovement.create({
-            data: {
-              businessId,
-              branchId: saleReturn.branchId,
-              productId: item.productId,
-              type: StockMovementType.SALE,
-              quantityBefore: before.quantity,
-              quantityChange: item.quantity.negated(),
-              quantityAfter: before.quantity.minus(item.quantity),
-              referenceType: 'SALE_RETURN_CANCELLATION',
-              referenceId: saleReturn.id,
-              reason: `Sale return cancelled: ${dto.reason.trim()}`,
-              createdById: userId,
-            },
+          await this.inventoryTransactions.decreaseStock(tx, {
+            businessId,
+            branchId: saleReturn.branchId,
+            productId: item.productId,
+            productName: item.productName,
+            quantity: item.quantity,
+            movementType: StockMovementType.SALE,
+            referenceType: 'SALE_RETURN_CANCELLATION',
+            referenceId: saleReturn.id,
+            reason: `Sale return cancelled: ${dto.reason.trim()}`,
+            createdById: userId,
+            allowInactiveProduct: true,
+            insufficientStockMessage:
+              `Cannot cancel return because available stock is lower than ` +
+              `the restored quantity for ${item.productName}`,
           });
         }
 
         return tx.saleReturn.update({
-          where: { id: saleReturn.id },
+          where: {
+            id: saleReturn.id,
+          },
           data: {
             status: SaleReturnStatus.CANCELLED,
             cancelledAt: new Date(),
@@ -447,13 +449,16 @@ export class SalesReturnsService {
           select: this.detailsSelect(),
         });
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      },
     );
   }
 
   async findAll(businessId: string, query: SaleReturnQueryDto) {
     const page = query.page ?? 1;
     const limit = query.limit ?? 20;
+
     if (
       query.dateFrom &&
       query.dateTo &&
@@ -463,16 +468,42 @@ export class SalesReturnsService {
     }
 
     const date: Prisma.DateTimeFilter = {};
-    if (query.dateFrom) date.gte = this.startOfDay(query.dateFrom);
-    if (query.dateTo) date.lte = this.endOfDay(query.dateTo);
+
+    if (query.dateFrom) {
+      date.gte = this.startOfDay(query.dateFrom);
+    }
+
+    if (query.dateTo) {
+      date.lte = this.endOfDay(query.dateTo);
+    }
 
     const where: Prisma.SaleReturnWhereInput = {
       businessId,
-      ...(query.status ? { status: query.status } : {}),
-      ...(query.branchId ? { branchId: query.branchId } : {}),
-      ...(query.customerId ? { customerId: query.customerId } : {}),
-      ...(query.saleId ? { saleId: query.saleId } : {}),
-      ...(query.dateFrom || query.dateTo ? { returnDate: date } : {}),
+      ...(query.status
+        ? {
+            status: query.status,
+          }
+        : {}),
+      ...(query.branchId
+        ? {
+            branchId: query.branchId,
+          }
+        : {}),
+      ...(query.customerId
+        ? {
+            customerId: query.customerId,
+          }
+        : {}),
+      ...(query.saleId
+        ? {
+            saleId: query.saleId,
+          }
+        : {}),
+      ...(query.dateFrom || query.dateTo
+        ? {
+            returnDate: date,
+          }
+        : {}),
       ...(query.search
         ? {
             OR: [
@@ -492,12 +523,18 @@ export class SalesReturnsService {
               },
               {
                 customer: {
-                  name: { contains: query.search.trim(), mode: 'insensitive' },
+                  name: {
+                    contains: query.search.trim(),
+                    mode: 'insensitive',
+                  },
                 },
               },
               {
                 customer: {
-                  phone: { contains: query.search.trim(), mode: 'insensitive' },
+                  phone: {
+                    contains: query.search.trim(),
+                    mode: 'insensitive',
+                  },
                 },
               },
             ],
@@ -508,12 +545,21 @@ export class SalesReturnsService {
     const [data, total] = await this.prisma.$transaction([
       this.prisma.saleReturn.findMany({
         where,
-        orderBy: [{ returnDate: 'desc' }, { createdAt: 'desc' }],
+        orderBy: [
+          {
+            returnDate: 'desc',
+          },
+          {
+            createdAt: 'desc',
+          },
+        ],
         skip: (page - 1) * limit,
         take: limit,
         select: this.listSelect(),
       }),
-      this.prisma.saleReturn.count({ where }),
+      this.prisma.saleReturn.count({
+        where,
+      }),
     ]);
 
     return {
@@ -529,10 +575,17 @@ export class SalesReturnsService {
 
   async findOne(businessId: string, returnId: string) {
     const saleReturn = await this.prisma.saleReturn.findFirst({
-      where: { id: returnId, businessId },
+      where: {
+        id: returnId,
+        businessId,
+      },
       select: this.detailsSelect(),
     });
-    if (!saleReturn) throw new NotFoundException('Sale return not found');
+
+    if (!saleReturn) {
+      throw new NotFoundException('Sale return not found');
+    }
+
     return saleReturn;
   }
 
@@ -546,16 +599,31 @@ export class SalesReturnsService {
       String(returnDate.getUTCMonth() + 1).padStart(2, '0'),
       String(returnDate.getUTCDate()).padStart(2, '0'),
     ].join('');
+
     const prefix = `SRT-${datePart}-`;
+
     const latest = await tx.saleReturn.findFirst({
-      where: { businessId, returnNumber: { startsWith: prefix } },
-      orderBy: { returnNumber: 'desc' },
-      select: { returnNumber: true },
+      where: {
+        businessId,
+        returnNumber: {
+          startsWith: prefix,
+        },
+      },
+      orderBy: {
+        returnNumber: 'desc',
+      },
+      select: {
+        returnNumber: true,
+      },
     });
+
     const previous = latest
       ? Number.parseInt(latest.returnNumber.slice(prefix.length), 10)
       : 0;
-    return `${prefix}${String(Number.isFinite(previous) ? previous + 1 : 1).padStart(5, '0')}`;
+
+    const nextNumber = Number.isFinite(previous) ? previous + 1 : 1;
+
+    return `${prefix}${String(nextNumber).padStart(5, '0')}`;
   }
 
   private listSelect() {
@@ -570,7 +638,13 @@ export class SalesReturnsService {
       profitImpact: true,
       reason: true,
       createdAt: true,
-      branch: { select: { id: true, name: true, code: true } },
+      branch: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+        },
+      },
       sale: {
         select: {
           id: true,
@@ -579,9 +653,25 @@ export class SalesReturnsService {
           totalAmount: true,
         },
       },
-      customer: { select: { id: true, name: true, code: true, phone: true } },
-      createdBy: { select: { id: true, name: true } },
-      _count: { select: { items: true } },
+      customer: {
+        select: {
+          id: true,
+          name: true,
+          code: true,
+          phone: true,
+        },
+      },
+      createdBy: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      _count: {
+        select: {
+          items: true,
+        },
+      },
     } satisfies Prisma.SaleReturnSelect;
   }
 
@@ -598,16 +688,25 @@ export class SalesReturnsService {
       cancelledAt: true,
       cancellationReason: true,
       updatedAt: true,
-      items: { orderBy: { lineNumber: 'asc' as const } },
-      cancelledBy: { select: { id: true, name: true } },
+      items: {
+        orderBy: {
+          lineNumber: 'asc' as const,
+        },
+      },
+      cancelledBy: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
     } satisfies Prisma.SaleReturnSelect;
   }
 
-  private money(value: Prisma.Decimal | string | number) {
+  private money(value: Prisma.Decimal | string | number): Prisma.Decimal {
     return new Prisma.Decimal(value).toDecimalPlaces(2);
   }
 
-  private quantity(value: Prisma.Decimal | string | number) {
+  private quantity(value: Prisma.Decimal | string | number): Prisma.Decimal {
     return new Prisma.Decimal(value).toDecimalPlaces(3);
   }
 
