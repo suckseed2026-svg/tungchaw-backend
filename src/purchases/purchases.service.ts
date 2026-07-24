@@ -10,6 +10,7 @@ import {
   PurchaseStatus,
   StockMovementType,
 } from '../generated/prisma/client';
+import { InventoryTransactionService } from '../inventory-transactions/inventory-transaction.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePurchaseItemDto } from './dto/create-purchase-item.dto';
 import { CreatePurchaseDto } from './dto/create-purchase.dto';
@@ -37,7 +38,10 @@ interface CalculatedPurchaseTotals {
 
 @Injectable()
 export class PurchasesService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly inventoryTransactions: InventoryTransactionService,
+  ) {}
 
   async create(
     businessId: string,
@@ -483,61 +487,18 @@ export class PurchasesService {
             );
           }
 
-          if (!item.product.trackStock) {
-            continue;
-          }
-
-          const existingStock = await transaction.branchStock.findUnique({
-            where: {
-              branchId_productId: {
-                branchId: purchase.branchId,
-                productId: item.productId,
-              },
-            },
-          });
-
-          const quantityBefore =
-            existingStock?.quantity ?? new Prisma.Decimal(0);
-
-          const quantityChange = item.quantity;
-
-          const quantityAfter = quantityBefore.add(quantityChange);
-
-          if (existingStock) {
-            await transaction.branchStock.update({
-              where: {
-                id: existingStock.id,
-              },
-              data: {
-                quantity: quantityAfter,
-              },
-            });
-          } else {
-            await transaction.branchStock.create({
-              data: {
-                businessId,
-                branchId: purchase.branchId,
-                productId: item.productId,
-                quantity: quantityAfter,
-              },
-            });
-          }
-
-          await transaction.stockMovement.create({
-            data: {
-              businessId,
-              branchId: purchase.branchId,
-              productId: item.productId,
-              type: StockMovementType.PURCHASE,
-              quantityBefore,
-              quantityChange,
-              quantityAfter,
-              referenceType: 'PURCHASE',
-              referenceId: purchase.id,
-              reason: `Purchase ${purchase.invoiceNumber} received`,
-              notes: purchase.notes,
-              createdById: receivedById,
-            },
+          await this.inventoryTransactions.increaseStock(transaction, {
+            businessId,
+            branchId: purchase.branchId,
+            productId: item.productId,
+            productName: item.product.name,
+            quantity: item.quantity,
+            movementType: StockMovementType.PURCHASE,
+            referenceType: 'PURCHASE',
+            referenceId: purchase.id,
+            reason: `Purchase ${purchase.invoiceNumber} received`,
+            notes: purchase.notes,
+            createdById: receivedById,
           });
         }
 
@@ -735,11 +696,11 @@ export class PurchasesService {
     };
   }
 
-  private money(value: number | string | Prisma.Decimal) {
+  private money(value: number | string | Prisma.Decimal): Prisma.Decimal {
     return new Prisma.Decimal(value).toDecimalPlaces(2);
   }
 
-  private quantity(value: number | string | Prisma.Decimal) {
+  private quantity(value: number | string | Prisma.Decimal): Prisma.Decimal {
     return new Prisma.Decimal(value).toDecimalPlaces(3);
   }
 
