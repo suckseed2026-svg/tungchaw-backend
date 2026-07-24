@@ -26,7 +26,7 @@ import { CustomersModule } from './customers/customers.module';
 import { CustomerPaymentsModule } from './customer-payments/customer-payments.module';
 import { SalesModule } from './sales/sales.module';
 import { SalesReturnsModule } from './sales-returns/sales-returns.module';
-
+import { InventoryAdjustmentsModule } from './inventory-adjustments/inventory-adjustments.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -57,6 +57,7 @@ import { SalesReturnsModule } from './sales-returns/sales-returns.module';
 
     SalesModule,
     SalesReturnsModule,
+    InventoryAdjustmentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

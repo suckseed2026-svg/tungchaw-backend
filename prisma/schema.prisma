@@ -116,6 +116,28 @@ enum PurchaseReturnStatus {
   CANCELLED
 }
 
+enum InventoryAdjustmentType {
+  INCREASE
+  DECREASE
+}
+
+enum InventoryAdjustmentReason {
+  DAMAGE
+  EXPIRED
+  LOST
+  THEFT
+  COUNT_CORRECTION
+  INITIAL_STOCK
+  INTERNAL_USE
+  SAMPLE
+  OTHER
+}
+
+enum InventoryAdjustmentStatus {
+  COMPLETED
+  CANCELLED
+}
+
 model Business {
   id       String         @id @default(uuid())
   name     String
@@ -127,25 +149,26 @@ model Business {
   timezone String         @default("Asia/Kolkata")
   currency String         @default("INR")
 
-  branches         Branch[]
-  memberships      BusinessMember[]
-  roles            Role[]
-  categories       Category[]
-  units            Unit[]
-  brands           Brand[]
-  products         Product[]
-  suppliers        Supplier[]
-  customers        Customer[]
-  purchases        Purchase[]
-  branchStocks     BranchStock[]
-  stockMovements   StockMovement[]
-  purchasePayments PurchasePayment[]
-  sales            Sale[]
-  salePayments     SalePayment[]
-  saleActivities   SaleActivity[]
-  customerPayments CustomerPayment[]
-  saleReturns      SaleReturn[]
-  purchaseReturns  PurchaseReturn[]
+  branches             Branch[]
+  memberships          BusinessMember[]
+  roles                Role[]
+  categories           Category[]
+  units                Unit[]
+  brands               Brand[]
+  products             Product[]
+  suppliers            Supplier[]
+  customers            Customer[]
+  purchases            Purchase[]
+  branchStocks         BranchStock[]
+  stockMovements       StockMovement[]
+  purchasePayments     PurchasePayment[]
+  sales                Sale[]
+  salePayments         SalePayment[]
+  saleActivities       SaleActivity[]
+  customerPayments     CustomerPayment[]
+  saleReturns          SaleReturn[]
+  purchaseReturns      PurchaseReturn[]
+  inventoryAdjustments InventoryAdjustment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -160,17 +183,18 @@ model Branch {
   address    String?
   isActive   Boolean @default(true)
 
-  business          Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  memberAssignments MemberBranch[]
-  stocks            BranchStock[]
-  stockMovements    StockMovement[]
-  purchases         Purchase[]
-  purchasePayments  PurchasePayment[]
-  sales             Sale[]
-  salePayments      SalePayment[]
-  customerPayments  CustomerPayment[]
-  saleReturns       SaleReturn[]
-  purchaseReturns   PurchaseReturn[]
+  business             Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  memberAssignments    MemberBranch[]
+  stocks               BranchStock[]
+  stockMovements       StockMovement[]
+  purchases            Purchase[]
+  purchasePayments     PurchasePayment[]
+  sales                Sale[]
+  salePayments         SalePayment[]
+  customerPayments     CustomerPayment[]
+  saleReturns          SaleReturn[]
+  purchaseReturns      PurchaseReturn[]
+  inventoryAdjustments InventoryAdjustment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -191,20 +215,22 @@ model User {
   emailVerifiedAt DateTime?
   lastLoginAt     DateTime?
 
-  memberships               BusinessMember[]
-  stockMovements            StockMovement[]
-  createdPurchases          Purchase[]
-  createdPurchasePayments   PurchasePayment[]
-  createdSales              Sale[]            @relation("SaleCreatedBy")
-  cancelledSales            Sale[]            @relation("SaleCancelledBy")
-  createdSalePayments       SalePayment[]     @relation("SalePaymentCreatedBy")
-  saleActivities            SaleActivity[]    @relation("SaleActivityActor")
-  approvedSaleItemOverrides SaleItem[]        @relation("SaleItemPriceApprovedBy")
-  createdCustomerPayments   CustomerPayment[] @relation("CustomerPaymentCreatedBy")
-  createdSaleReturns        SaleReturn[]      @relation("SaleReturnCreatedBy")
-  cancelledSaleReturns      SaleReturn[]      @relation("SaleReturnCancelledBy")
-  createdPurchaseReturns    PurchaseReturn[]  @relation("PurchaseReturnCreatedBy")
-  cancelledPurchaseReturns  PurchaseReturn[]  @relation("PurchaseReturnCancelledBy")
+  memberships                   BusinessMember[]
+  stockMovements                StockMovement[]
+  createdPurchases              Purchase[]
+  createdPurchasePayments       PurchasePayment[]
+  createdSales                  Sale[]                @relation("SaleCreatedBy")
+  cancelledSales                Sale[]                @relation("SaleCancelledBy")
+  createdSalePayments           SalePayment[]         @relation("SalePaymentCreatedBy")
+  saleActivities                SaleActivity[]        @relation("SaleActivityActor")
+  approvedSaleItemOverrides     SaleItem[]            @relation("SaleItemPriceApprovedBy")
+  createdCustomerPayments       CustomerPayment[]     @relation("CustomerPaymentCreatedBy")
+  createdSaleReturns            SaleReturn[]          @relation("SaleReturnCreatedBy")
+  cancelledSaleReturns          SaleReturn[]          @relation("SaleReturnCancelledBy")
+  createdPurchaseReturns        PurchaseReturn[]      @relation("PurchaseReturnCreatedBy")
+  cancelledPurchaseReturns      PurchaseReturn[]      @relation("PurchaseReturnCancelledBy")
+  createdInventoryAdjustments   InventoryAdjustment[] @relation("InventoryAdjustmentCreatedBy")
+  cancelledInventoryAdjustments InventoryAdjustment[] @relation("InventoryAdjustmentCancelledBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -391,10 +417,11 @@ model Supplier {
 
   isActive Boolean @default(true)
 
-  business         Business          @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  purchases        Purchase[]
-  purchasePayments PurchasePayment[]
-  purchaseReturns  PurchaseReturn[]
+  business             Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  purchases            Purchase[]
+  purchasePayments     PurchasePayment[]
+  purchaseReturns      PurchaseReturn[]
+  inventoryAdjustments InventoryAdjustment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -459,12 +486,13 @@ model Product {
   unit     Unit      @relation(fields: [unitId], references: [id], onDelete: Restrict)
   brand    Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
 
-  branchStocks        BranchStock[]
-  stockMovements      StockMovement[]
-  purchaseItems       PurchaseItem[]
-  saleItems           SaleItem[]
-  saleReturnItems     SaleReturnItem[]
-  purchaseReturnItems PurchaseReturnItem[]
+  branchStocks             BranchStock[]
+  stockMovements           StockMovement[]
+  purchaseItems            PurchaseItem[]
+  saleItems                SaleItem[]
+  saleReturnItems          SaleReturnItem[]
+  purchaseReturnItems      PurchaseReturnItem[]
+  inventoryAdjustmentItems InventoryAdjustmentItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -687,6 +715,82 @@ model PurchasePayment {
   @@index([businessId, paymentDate])
   @@index([businessId, supplierId, paymentDate])
   @@index([businessId, purchaseId])
+}
+
+model InventoryAdjustment {
+  id            String  @id @default(uuid())
+  businessId    String
+  branchId      String
+  createdById   String
+  cancelledById String?
+
+  adjustmentNumber String
+  adjustmentDate   DateTime
+  type             InventoryAdjustmentType
+  reason           InventoryAdjustmentReason
+  status           InventoryAdjustmentStatus @default(COMPLETED)
+
+  totalQuantity Decimal @default(0) @db.Decimal(18, 3)
+
+  referenceNumber String?
+  notes           String?
+
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  branch   Branch   @relation(fields: [branchId], references: [id], onDelete: Restrict)
+
+  createdBy   User  @relation("InventoryAdjustmentCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("InventoryAdjustmentCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  items InventoryAdjustmentItem[]
+
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  supplier   Supplier? @relation(fields: [supplierId], references: [id])
+  supplierId String?
+
+  @@unique([businessId, adjustmentNumber])
+  @@index([businessId])
+  @@index([branchId])
+  @@index([createdById])
+  @@index([cancelledById])
+  @@index([businessId, status])
+  @@index([businessId, type])
+  @@index([businessId, reason])
+  @@index([businessId, adjustmentDate])
+  @@index([businessId, branchId, adjustmentDate])
+}
+
+model InventoryAdjustmentItem {
+  id                    String @id @default(uuid())
+  inventoryAdjustmentId String
+  productId             String
+  lineNumber            Int
+
+  productName String
+  productCode String
+  unitName    String
+
+  quantity Decimal @db.Decimal(18, 3)
+
+  quantityBefore Decimal @db.Decimal(18, 3)
+  quantityAfter  Decimal @db.Decimal(18, 3)
+
+  itemReason String?
+  notes      String?
+
+  inventoryAdjustment InventoryAdjustment @relation(fields: [inventoryAdjustmentId], references: [id], onDelete: Cascade)
+  product             Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([inventoryAdjustmentId, lineNumber])
+  @@index([inventoryAdjustmentId])
+  @@index([productId])
+  @@index([inventoryAdjustmentId, productId])
 }
 
 model BranchStock {
