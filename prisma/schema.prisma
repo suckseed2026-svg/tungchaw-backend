@@ -138,6 +138,11 @@ enum InventoryAdjustmentStatus {
   CANCELLED
 }
 
+enum StockTransferStatus {
+  COMPLETED
+  CANCELLED
+}
+
 model Business {
   id       String         @id @default(uuid())
   name     String
@@ -169,6 +174,7 @@ model Business {
   saleReturns          SaleReturn[]
   purchaseReturns      PurchaseReturn[]
   inventoryAdjustments InventoryAdjustment[]
+  stockTransfers       StockTransfer[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -183,18 +189,20 @@ model Branch {
   address    String?
   isActive   Boolean @default(true)
 
-  business             Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
-  memberAssignments    MemberBranch[]
-  stocks               BranchStock[]
-  stockMovements       StockMovement[]
-  purchases            Purchase[]
-  purchasePayments     PurchasePayment[]
-  sales                Sale[]
-  salePayments         SalePayment[]
-  customerPayments     CustomerPayment[]
-  saleReturns          SaleReturn[]
-  purchaseReturns      PurchaseReturn[]
-  inventoryAdjustments InventoryAdjustment[]
+  business               Business              @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  memberAssignments      MemberBranch[]
+  stocks                 BranchStock[]
+  stockMovements         StockMovement[]
+  purchases              Purchase[]
+  purchasePayments       PurchasePayment[]
+  sales                  Sale[]
+  salePayments           SalePayment[]
+  customerPayments       CustomerPayment[]
+  saleReturns            SaleReturn[]
+  purchaseReturns        PurchaseReturn[]
+  inventoryAdjustments   InventoryAdjustment[]
+  outgoingStockTransfers StockTransfer[]       @relation("StockTransferFromBranch")
+  incomingStockTransfers StockTransfer[]       @relation("StockTransferToBranch")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -231,6 +239,8 @@ model User {
   cancelledPurchaseReturns      PurchaseReturn[]      @relation("PurchaseReturnCancelledBy")
   createdInventoryAdjustments   InventoryAdjustment[] @relation("InventoryAdjustmentCreatedBy")
   cancelledInventoryAdjustments InventoryAdjustment[] @relation("InventoryAdjustmentCancelledBy")
+  createdStockTransfers         StockTransfer[]       @relation("StockTransferCreatedBy")
+  cancelledStockTransfers       StockTransfer[]       @relation("StockTransferCancelledBy")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -493,6 +503,7 @@ model Product {
   saleReturnItems          SaleReturnItem[]
   purchaseReturnItems      PurchaseReturnItem[]
   inventoryAdjustmentItems InventoryAdjustmentItem[]
+  stockTransferItems       StockTransferItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -791,6 +802,82 @@ model InventoryAdjustmentItem {
   @@index([inventoryAdjustmentId])
   @@index([productId])
   @@index([inventoryAdjustmentId, productId])
+}
+
+model StockTransfer {
+  id            String  @id @default(uuid())
+  businessId    String
+  fromBranchId  String
+  toBranchId    String
+  createdById   String
+  cancelledById String?
+
+  transferNumber String
+  transferDate   DateTime
+  status         StockTransferStatus @default(COMPLETED)
+
+  totalQuantity Decimal @default(0) @db.Decimal(18, 3)
+
+  referenceNumber String?
+  notes           String?
+
+  cancelledAt        DateTime?
+  cancellationReason String?
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  fromBranch Branch   @relation("StockTransferFromBranch", fields: [fromBranchId], references: [id], onDelete: Restrict)
+  toBranch   Branch   @relation("StockTransferToBranch", fields: [toBranchId], references: [id], onDelete: Restrict)
+
+  createdBy   User  @relation("StockTransferCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  cancelledBy User? @relation("StockTransferCancelledBy", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  items StockTransferItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([businessId, transferNumber])
+  @@index([businessId])
+  @@index([fromBranchId])
+  @@index([toBranchId])
+  @@index([createdById])
+  @@index([cancelledById])
+  @@index([businessId, status])
+  @@index([businessId, transferDate])
+  @@index([businessId, fromBranchId, transferDate])
+  @@index([businessId, toBranchId, transferDate])
+  @@index([businessId, fromBranchId, toBranchId])
+}
+
+model StockTransferItem {
+  id              String @id @default(uuid())
+  stockTransferId String
+  productId       String
+  lineNumber      Int
+
+  productName String
+  productCode String
+  unitName    String
+
+  quantity Decimal @db.Decimal(18, 3)
+
+  quantityBeforeSource      Decimal @db.Decimal(18, 3)
+  quantityAfterSource       Decimal @db.Decimal(18, 3)
+  quantityBeforeDestination Decimal @db.Decimal(18, 3)
+  quantityAfterDestination  Decimal @db.Decimal(18, 3)
+
+  notes String?
+
+  stockTransfer StockTransfer @relation(fields: [stockTransferId], references: [id], onDelete: Cascade)
+  product       Product       @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([stockTransferId, lineNumber])
+  @@index([stockTransferId])
+  @@index([productId])
+  @@index([stockTransferId, productId])
 }
 
 model BranchStock {

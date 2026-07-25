@@ -27,6 +27,7 @@ import { CustomerPaymentsModule } from './customer-payments/customer-payments.mo
 import { SalesModule } from './sales/sales.module';
 import { SalesReturnsModule } from './sales-returns/sales-returns.module';
 import { InventoryAdjustmentsModule } from './inventory-adjustments/inventory-adjustments.module';
+import { StockTransfersModule } from './stock-transfers/stock-transfers.module';
 @Module({
   imports: [
     ConfigModule.forRoot({
@@ -58,6 +59,7 @@ import { InventoryAdjustmentsModule } from './inventory-adjustments/inventory-ad
     SalesModule,
     SalesReturnsModule,
     InventoryAdjustmentsModule,
+    StockTransfersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
