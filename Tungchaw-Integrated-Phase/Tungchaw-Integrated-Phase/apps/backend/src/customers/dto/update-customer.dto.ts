@@ -1,0 +1,12 @@
+import { PartialType, ApiPropertyOptional } from '@nestjs/swagger';
+import { IsBoolean, IsOptional } from 'class-validator';
+import { CreateCustomerDto } from './create-customer.dto';
+
+export class UpdateCustomerDto extends PartialType(CreateCustomerDto) {
+  @ApiPropertyOptional({
+    example: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  isActive?: boolean;
+}

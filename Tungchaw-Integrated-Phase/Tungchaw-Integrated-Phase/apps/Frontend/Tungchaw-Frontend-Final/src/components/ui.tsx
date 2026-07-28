@@ -1,0 +1,12 @@
+import React from 'react';
+import * as I from 'lucide-react';
+export const Icon=({name,size=18}: {name:string;size?:number})=>{const C=(I as any)[name]||I.Circle;return <C size={size}/>};
+export const Button=({children,variant='primary',className='',...p}:React.ButtonHTMLAttributes<HTMLButtonElement>&{variant?:'primary'|'secondary'|'ghost'|'danger'})=><button className={`btn ${variant} ${className}`} {...p}>{children}</button>;
+export const Card=({children,className=''}:{children:React.ReactNode;className?:string})=><section className={`card ${className}`}>{children}</section>;
+export const Badge=({children,tone='neutral'}:{children:React.ReactNode;tone?:'neutral'|'good'|'warn'|'bad'|'info'})=><span className={`badge ${tone}`}>{children}</span>;
+export const Field=({label,error,...p}:React.InputHTMLAttributes<HTMLInputElement>&{label:string;error?:string})=><label className="field"><span>{label}</span><input {...p}/>{error&&<small>{error}</small>}</label>;
+export const Select=({label,children,...p}:React.SelectHTMLAttributes<HTMLSelectElement>&{label:string;children:React.ReactNode})=><label className="field"><span>{label}</span><select {...p}>{children}</select></label>;
+export const PageHeader=({title,subtitle,actions}:{title:string;subtitle?:string;actions?:React.ReactNode})=><div className="page-head"><div><h1>{title}</h1>{subtitle&&<p>{subtitle}</p>}</div><div className="page-actions">{actions}</div></div>;
+export const Empty=({title='Nothing here yet',text='Create your first record to get started.'}:{title?:string;text?:string})=><div className="empty"><I.PackageOpen size={32}/><strong>{title}</strong><span>{text}</span></div>;
+export const Spinner=()=> <span className="spinner"/>;
+export const Money=({value}:{value:unknown})=> <>{new Intl.NumberFormat('en-IN',{style:'currency',currency:'INR',maximumFractionDigits:2}).format(Number(value||0))}</>;

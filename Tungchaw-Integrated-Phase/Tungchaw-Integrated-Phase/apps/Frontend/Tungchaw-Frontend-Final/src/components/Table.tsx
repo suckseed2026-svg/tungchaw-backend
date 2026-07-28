@@ -1,0 +1,6 @@
+import {Badge,Empty,Money} from './ui';
+import type {ResourceRow} from '../lib/types';
+const moneyKeys=/amount|price|total|balance|sales|purchases|profit|revenue|value/i;
+const dateKeys=/date|createdAt|updatedAt|lastSeen/i;
+function show(k:string,v:unknown){if(v===null||v===undefined||v==='')return '—';if(typeof v==='boolean')return v?'Yes':'No';if(moneyKeys.test(k)&&typeof v==='number')return <Money value={v}/>;if(typeof v==='object')return Array.isArray(v)?`${v.length} items`:'—';if(/status|paymentStatus/i.test(k)){const s=String(v);const tone=/active|paid|completed|received|approved|system/i.test(s)?'good':/pending|partial|low|invited|needed/i.test(s)?'warn':/cancel|out|suspend|expired/i.test(s)?'bad':'neutral';return <Badge tone={tone}>{s}</Badge>}return String(v)}
+export default function Table({rows,onOpen}:{rows:ResourceRow[];onOpen?:(r:ResourceRow)=>void}){if(!rows.length)return <Empty/>;const keys=Object.keys(rows[0]).filter(k=>k!=='id').slice(0,7);return <div className="table-wrap"><table><thead><tr>{keys.map(k=><th key={k}>{k.replace(/([A-Z])/g,' $1')}</th>)}</tr></thead><tbody>{rows.map(r=><tr key={r.id} onClick={()=>onOpen?.(r)}>{keys.map(k=><td key={k}>{show(k,r[k])}</td>)}</tr>)}</tbody></table></div>}

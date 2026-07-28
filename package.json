@@ -1,0 +1,24 @@
+{
+  "name": "tungchaw-integrated-phase-new",
+  "version": "1.0.0",
+  "description": "Example Express app demonstrating security utilities",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "mocha --exit"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@sendgrid/mail": "^8.1.6",
+    "argon2": "^0.45.1",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.6",
+    "express": "^4.18.4",
+    "helmet": "^8.3.0",
+    "nodemailer": "^9.0.3"
+  },
+  "devDependencies": {
+    "mocha": "^11.7.6"
+  }
+}

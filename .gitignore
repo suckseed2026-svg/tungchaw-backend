@@ -1,0 +1,13 @@
+node_modules/
+.env
+data/
+*.sqlite3
+.DS_Store
+.vscode/
+npm-debug.log
+coverage/
+*.log
+__pycache__/
+.idea/
+*.local
+*.pem
